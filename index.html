@@ -1,0 +1,1025 @@
+<title>Smash Up Table</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: a tabletop. Scoreboard strip on top, a wrapping grid of base cards in the middle, the seated player's hand and inspector below, a prompt sheet pinned to the bottom edge. */
+:root {
+  --bg: #e9edf3; --surface: #ffffff; --surface-2: #f2f5f9; --ink: #121a2b; --muted: #57657a; --line: #cbd3df;
+  --accent: #d6304a; --accent-ink: #ffffff; --hl: #f0b020; --good: #1f8a54; --bad: #c8342c;
+  --shadow: 0 1px 0 rgba(18,26,43,.06), 0 6px 18px rgba(18,26,43,.07);
+  --display: 'Alfa Slab One', 'Rockwell', 'Georgia', serif;
+  --body: 'Figtree', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e1420; --surface: #172033; --surface-2: #1d2840; --ink: #eef1f7; --muted: #9aa7bc; --line: #2b3852;
+  --accent: #ff5a70; --accent-ink: #1a0b10; --hl: #f5c04a; --good: #4cc98a; --bad: #ff7a70;
+  --shadow: 0 1px 0 rgba(0,0,0,.3), 0 8px 22px rgba(0,0,0,.35); color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0e1420; --surface: #172033; --surface-2: #1d2840; --ink: #eef1f7; --muted: #9aa7bc; --line: #2b3852;
+  --accent: #ff5a70; --accent-ink: #1a0b10; --hl: #f5c04a; --good: #4cc98a; --bad: #ff7a70;
+  --shadow: 0 1px 0 rgba(0,0,0,.3), 0 8px 22px rgba(0,0,0,.35); color-scheme: dark; }
+
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.45 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--hl); outline-offset: 2px; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 18px 40px; }
+.wrap.has-sheet { padding-bottom: 46vh; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.btn { border: 2px solid var(--ink); background: var(--surface); border-radius: 8px; padding: 9px 14px; font-weight: 600; box-shadow: 3px 3px 0 var(--ink); transition: transform .08s, box-shadow .08s; }
+.btn:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 var(--ink); }
+.btn:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); }
+.btn.ghost { box-shadow: none; border-color: var(--line); }
+.btn[disabled] { opacity: .45; cursor: not-allowed; box-shadow: none; transform: none; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px 2px 7px; border-radius: 99px; font-size: 12.5px; font-weight: 600; border: 1.5px solid var(--f, var(--line)); background: var(--surface); white-space: nowrap; }
+.chip i { width: 9px; height: 9px; border-radius: 50%; background: var(--f, var(--muted)); display: inline-block; }
+
+/* setup */
+.hero { padding: 26px 0 8px; }
+.logo { font-family: var(--display); font-size: clamp(54px, 13vw, 118px); line-height: .9; letter-spacing: .5px; margin: 0; }
+.logo span { display: inline-block; }
+.logo .a { color: var(--ink); text-shadow: 4px 4px 0 var(--hl); }
+.logo .b { color: var(--accent); transform: rotate(-3deg) translateY(4px); margin-left: .12em; text-shadow: 4px 4px 0 var(--ink); }
+.tag { color: var(--muted); max-width: 52ch; margin: 14px 0 0; }
+.setup-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); margin-top: 22px; }
+.pcard { background: var(--surface); border: 2px solid var(--ink); border-radius: 12px; padding: 14px; box-shadow: var(--shadow); display: grid; gap: 10px; min-width: 0; }
+.pcard input[type=text] { width: 100%; font: inherit; font-weight: 700; font-size: 17px; background: var(--surface-2); color: var(--ink); border: 1.5px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.fgrid { display: flex; flex-wrap: wrap; gap: 7px; }
+.fpick { border: 1.5px solid var(--line); background: var(--surface-2); border-radius: 8px; padding: 6px 10px 6px 8px; display: inline-flex; gap: 7px; align-items: center; font-weight: 600; font-size: 13.5px; }
+.fpick i { width: 11px; height: 11px; border-radius: 3px; background: var(--f); }
+.fpick[aria-pressed=true] { border-color: var(--f); background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--f); }
+.fpick[disabled] { opacity: .35; cursor: not-allowed; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.seg { display: inline-flex; border: 2px solid var(--ink); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: var(--surface); padding: 7px 16px; font-weight: 700; }
+.seg button[aria-pressed=true] { background: var(--ink); color: var(--bg); }
+details.rules { margin-top: 22px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+details.rules summary { cursor: pointer; font-weight: 700; }
+details.rules ul { margin: 10px 0 2px; padding-left: 20px; color: var(--muted); }
+details.rules li { margin: 4px 0; }
+
+/* scoreboard */
+.score { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+.pl { background: var(--surface); border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; min-width: 0; }
+.pl.turn { border-color: var(--ink); box-shadow: 4px 4px 0 var(--hl), 0 0 0 1.5px var(--ink); }
+.pl .nm { font-weight: 700; overflow-wrap: anywhere; }
+.pl .vp { grid-row: span 2; font-family: var(--display); font-size: 34px; line-height: 1; text-align: right; }
+.pl .vp small { font: 600 11px var(--body); display: block; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+.pl .fs { display: flex; flex-wrap: wrap; gap: 4px; }
+.pl .cnt { grid-column: 1 / -1; font-size: 12.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin: 14px 0 12px; }
+.phase { font-weight: 600; }
+.phase b { font-family: var(--mono); }
+
+/* bases */
+.bases { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); }
+.base { background: var(--surface); border: 2px solid var(--ink); border-radius: 12px; padding: 12px; display: grid; gap: 9px; align-content: start; box-shadow: var(--shadow); min-width: 0; }
+.base.pick { outline: 4px solid var(--hl); outline-offset: 3px; cursor: pointer; }
+.base.cancelled { opacity: .8; border-style: dashed; }
+.base h3 { font-family: var(--display); font-size: 20px; font-weight: 400; line-height: 1.1; }
+.base .meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; }
+.vps { display: inline-flex; gap: 3px; font-family: var(--mono); font-weight: 700; font-size: 12.5px; }
+.vps span { background: var(--ink); color: var(--bg); border-radius: 5px; padding: 1px 7px; }
+.vps span:nth-child(2) { opacity: .75; } .vps span:nth-child(3) { opacity: .5; }
+.meter { height: 8px; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--accent); width: 0; }
+.meter.ready i { background: var(--good); }
+.btxt { color: var(--muted); font-size: 12.5px; }
+.pm { border-top: 1px dashed var(--line); padding-top: 7px; display: grid; gap: 5px; }
+.pm .who { display: flex; justify-content: space-between; font-size: 12.5px; font-weight: 700; color: var(--muted); }
+.mins { display: flex; flex-wrap: wrap; gap: 6px; }
+.mn { border: 1.5px solid var(--f); border-left-width: 6px; border-radius: 7px; background: var(--surface-2); padding: 3px 8px 3px 7px; display: inline-flex; flex-direction: column; text-align: left; min-width: 0; max-width: 100%; }
+.mn .t { display: flex; gap: 7px; align-items: baseline; font-weight: 600; font-size: 13.5px; }
+.mn .pw { font-family: var(--mono); font-weight: 700; }
+.mn .pw.up { color: var(--good); } .mn .pw.down { color: var(--bad); }
+.mn small { font-size: 11px; color: var(--muted); }
+.mn.pick { outline: 3px solid var(--hl); outline-offset: 2px; }
+.mn.dim { opacity: .5; }
+.mn.sel { box-shadow: 0 0 0 3px var(--accent); }
+.acts { display: flex; flex-wrap: wrap; gap: 5px; }
+.act { font-size: 12px; font-weight: 600; border: 1.5px solid var(--f, var(--line)); border-radius: 6px; padding: 1px 7px; background: var(--surface); }
+.empty { color: var(--muted); font-size: 13px; }
+
+/* hand & inspector */
+.sect { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 22px 0 8px; }
+.sect h2 { font-family: var(--display); font-weight: 400; font-size: 22px; }
+.hand { display: grid; gap: 9px; grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); }
+.card { text-align: left; background: var(--surface); border: 1.5px solid var(--line); border-top: 6px solid var(--f); border-radius: 9px; padding: 7px 9px 8px; display: grid; gap: 3px; min-width: 0; min-height: 82px; align-content: start; }
+.card .nm { font-weight: 700; font-size: 14px; line-height: 1.2; overflow-wrap: anywhere; }
+.card .ty { font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; }
+.card .ty b { font-family: var(--mono); font-size: 15px; color: var(--ink); letter-spacing: 0; }
+.card.sel { border-color: var(--ink); box-shadow: 4px 4px 0 var(--hl), 0 0 0 1.5px var(--ink); }
+.card.off { opacity: .55; }
+.card.reveal { opacity: .5; cursor: default; }
+.card.chosen { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent); }
+.insp { background: var(--surface); border: 1.5px solid var(--line); border-radius: 10px; padding: 11px 13px; display: grid; gap: 7px; margin-bottom: 12px; }
+.insp h3 { font-size: 17px; }
+.insp p { margin: 0; max-width: 70ch; }
+.insp .why { color: var(--muted); font-size: 13px; }
+.opts { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* prompt sheet */
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--surface); border-top: 3px solid var(--ink);
+  padding: 12px max(16px, env(safe-area-inset-left, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); box-shadow: 0 -10px 30px rgba(0,0,0,.18); max-height: 52vh; overflow: auto; }
+.sheet .in { max-width: 1180px; margin: 0 auto; display: grid; gap: 10px; }
+.sheet .q { font-weight: 700; font-size: 16px; }
+.sheet .q small { display: block; font-weight: 600; font-size: 12px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+.sheet .cards { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.label { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+
+/* overlays */
+.overlay { position: fixed; inset: 0; z-index: 40; background: rgba(8,12,22,.78); display: grid; place-items: center; padding: 20px; }
+.panel { background: var(--surface); border: 3px solid var(--ink); border-radius: 14px; padding: 22px; max-width: 520px; width: 100%; max-height: 86vh; overflow: auto; display: grid; gap: 14px; box-shadow: 8px 8px 0 var(--hl); }
+.panel h2 { font-family: var(--display); font-weight: 400; font-size: 30px; line-height: 1.05; }
+.panel.wide { max-width: 760px; }
+.dlist { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.dlist li { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px dashed var(--line); padding: 3px 0; }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.tabs button { border: 1.5px solid var(--line); background: var(--surface-2); border-radius: 8px; padding: 5px 11px; font-weight: 600; }
+.tabs button[aria-pressed=true] { border-color: var(--ink); background: var(--ink); color: var(--bg); }
+.log { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; font-size: 13.5px; color: var(--muted); max-height: 260px; overflow: auto; border: 1.5px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--surface); }
+.log li:first-child { color: var(--ink); font-weight: 600; }
+.log li.turn { color: var(--ink); font-weight: 700; margin-top: 4px; }
+@media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
+</style>
+
+<div class="wrap" id="app"></div>
+<div id="layer"></div>
+
+<script>
+/* Smash Up (hot-seat) rules engine. Works in Node and in the browser.
+   The engine is async: every choice goes through g.host.ask(). */
+(function (root) {
+'use strict';
+
+/* ---------- static data ---------- */
+const FACTIONS = {
+  aliens:     { name: 'Aliens',     color: '#46b86a', blurb: 'Bounce minions back to hand, swap bases, gain VP.' },
+  dinosaurs:  { name: 'Dinosaurs',  color: '#e49b2f', blurb: 'Huge power and sturdy defense.' },
+  ninjas:     { name: 'Ninjas',     color: '#7788a6', blurb: 'Strike at the last second, destroy minions.' },
+  pirates:    { name: 'Pirates',    color: '#d0583f', blurb: 'Move minions around, blast small ones.' },
+  robots:     { name: 'Robots',     color: '#3f9bd6', blurb: 'Swarm the table with Microbots.' },
+  tricksters: { name: 'Tricksters', color: '#e0569d', blurb: 'Set traps, punish and stall opponents.' },
+  wizards:    { name: 'Wizards',    color: '#a066e8', blurb: 'Draw cards and play extra actions.' },
+  zombies:    { name: 'Zombies',    color: '#98b040', blurb: 'Bring minions back from the discard pile.' }
+};
+const CARDS = {};
+const BASES = {};
+const ab = m => ({ player: m.controller, kind: 'ability' });
+const ac = p => ({ player: p, kind: 'action' });
+const rm = (arr, x) => { const i = arr.indexOf(x); if (i >= 0) arr.splice(i, 1); return i >= 0; };
+const isMinionCard = c => c.def.type === 'minion' || c.def.type === 'fusion';
+
+function M(f, id, name, power, count, text, h) { CARDS[id] = Object.assign({ id, faction: f, name, type: 'minion', power, count, text }, h || {}); }
+function A(f, id, name, count, text, h) { CARDS[id] = Object.assign({ id, faction: f, name, type: 'action', count, text }, h || {}); }
+function B(id, name, bp, vp, text) { BASES[id] = { id, name, bp, vp, text }; }
+
+/* ---------- ALIENS ---------- */
+M('aliens', 'overlord', 'Supreme Overlord', 5, 1, 'You may return a minion to its owner’s hand.', {
+  onPlay: async (g, m) => { const t = await g.pickMinion(m.controller, g.allMinions(), 'Return a minion to its owner’s hand?', { optional: true, src: ab(m) }); if (t) await g.returnToHand(t, ab(m)); } });
+M('aliens', 'invader', 'Invader', 3, 2, 'Gain 1 VP.', { onPlay: async (g, m) => g.addVP(m.controller, 1) });
+M('aliens', 'scout', 'Scout', 3, 3, 'Special: after this base scores, you may return this minion to your hand.');
+M('aliens', 'collector', 'Collector', 2, 4, 'You may return a minion of power 3 or less on this base to its owner’s hand.', {
+  onPlay: async (g, m) => { const t = await g.pickMinion(m.controller, m.base.minions.filter(x => g.powerOf(x) <= 3), 'Return a minion of power 3 or less here?', { optional: true, src: ab(m) }); if (t) await g.returnToHand(t, ab(m)); } });
+A('aliens', 'abduction', 'Abduction', 1, 'Return a minion to its owner’s hand. Play an extra minion.', {
+  play: async (g, p) => { const t = await g.pickMinion(p, g.allMinions(), 'Return which minion to hand?', { src: ac(p) }); if (t) await g.returnToHand(t, ac(p)); await g.extraMinion(p, { optional: true }); } });
+A('aliens', 'beamup', 'Beam Up', 2, 'Return a minion to its owner’s hand.', {
+  play: async (g, p) => { const t = await g.pickMinion(p, g.allMinions(), 'Return which minion to hand?', { src: ac(p) }); if (t) await g.returnToHand(t, ac(p)); } });
+A('aliens', 'crop', 'Crop Circles', 1, 'Choose a base. Return every minion there to its owner’s hand.', {
+  play: async (g, p) => { const b = await g.pickBase(p, g.bases.filter(x => x.minions.length), 'Choose a base to clear'); if (b) for (const m of [...b.minions]) await g.returnToHand(m, ac(p)); } });
+A('aliens', 'disintegrator', 'Disintegrator', 2, 'Put a minion of power 3 or less on the bottom of its owner’s deck.', {
+  play: async (g, p) => { const t = await g.pickMinion(p, g.allMinions().filter(x => g.powerOf(x) <= 3), 'Send which minion to the bottom of its deck?', { src: ac(p) }); if (t) await g.toBottom(t, ac(p)); } });
+A('aliens', 'invasion', 'Invasion', 1, 'Move a minion to another base.', {
+  play: async (g, p) => { const t = await g.pickMinion(p, g.allMinions().filter(x => g.bases.some(b => g.canMoveTo(x, b, ac(p)))), 'Move which minion?', { src: ac(p) }); if (!t) return;
+    const d = await g.pickBase(p, g.bases.filter(b => g.canMoveTo(t, b, ac(p))), 'Move it to which base?'); if (d) await g.move(t, d, ac(p)); } });
+A('aliens', 'jammed', 'Jammed Signal', 1, 'Play on a base. Its abilities are cancelled.', { target: 'base' });
+A('aliens', 'probe', 'Probe', 1, 'Look at another player’s hand and make them discard a minion from it.', {
+  play: async (g, p) => { const os = g.others(p).filter(i => g.players[i].hand.length); if (!os.length) return;
+    let t = os[0]; if (os.length > 1) t = +(await g.pickOption(p, os.map(i => ({ id: String(i), label: g.players[i].name })), 'Probe whose hand?'));
+    const hand = g.players[t].hand; const ms = hand.filter(isMinionCard);
+    const c = await g.pickCards(p, ms.length ? ms : hand, ms.length ? `Probe: choose a minion for ${g.players[t].name} to discard` : `${g.players[t].name} has no minions`, { reveal: hand, optional: !ms.length });
+    if (c) { rm(hand, c); g.players[c.owner].discard.push(c); g.log(`${g.players[t].name} discards ${c.def.name}.`); } } });
+A('aliens', 'terraforming', 'Terraforming', 1, 'Swap a base in play with one from the base deck. You may play an extra minion there.', {
+  play: async (g, p) => { if (!g.baseDeck.length) return;
+    const b = await g.pickBase(p, g.bases, 'Swap which base?'); if (!b) return;
+    const id = await g.pickOption(p, g.baseDeck.map((d, i) => ({ id: String(i), label: `${d.name} (breakpoint ${d.bp}, ${d.vp.join('/')})` })), 'Choose a base from the deck');
+    const i = +id; const nd = g.baseDeck.splice(i, 1)[0]; g.baseDeck.push(b.def); g.shuffle(g.baseDeck); b.def = nd; b.breakMods = [];
+    g.log(`Terraforming: ${nd.name} takes the place of the old base.`);
+    await g.extraMinion(p, { base: b, optional: true }); } });
+B('homeworld', 'The Homeworld', 23, [4, 2, 1], 'Once per turn, after you play a minion here, you may play an extra minion of power 2 or less.');
+B('mothership', 'The Mothership', 20, [4, 2, 1], 'After this base scores, the winner may return one of their minions of power 3 or less from here to their hand.');
+
+/* ---------- DINOSAURS ---------- */
+M('dinosaurs', 'kingrex', 'King Rex', 7, 1, 'No ability. Just big.');
+M('dinosaurs', 'laseratops', 'Laseratops', 4, 2, 'You may destroy a minion here with printed power 2 or less.', {
+  onPlay: async (g, m) => { const t = await g.pickMinion(m.controller, m.base.minions.filter(x => x.def.power <= 2), 'Destroy a minion of printed power 2 or less?', { optional: true, src: ab(m) }); if (t) await g.destroy(t, ab(m)); } });
+M('dinosaurs', 'stego', 'Armor Stego', 3, 3, 'Talent: until the start of your turn, +2 power during other players’ turns.', {
+  talent: { can: () => true, run: async (g, m) => { m.stego = true; g.log('Armor Stego braces itself.'); } } });
+M('dinosaurs', 'raptor', 'War Raptor', 2, 4, 'Gains +1 power for each War Raptor on this base (including itself).', {
+  mod: (g, m) => m.base ? m.base.minions.filter(x => x.def.id === 'raptor').length : 0 });
+A('dinosaurs', 'augmentation', 'Augmentation', 2, 'One minion gets +4 power until the end of your turn.', {
+  play: async (g, p) => { const t = await g.pickMinion(p, g.allMinions(), 'Give +4 power to which minion?', { src: ac(p) }); if (t) { t.temp.push({ amt: 4, until: 'end' }); g.log(`${t.def.name} gets +4 power.`); } } });
+A('dinosaurs', 'howl', 'Howl', 2, 'Each of your minions gets +1 power until the end of your turn.', {
+  play: async (g, p) => { for (const m of g.minionsOf(p)) m.temp.push({ amt: 1, until: 'end' }); g.log('Howl: your minions get +1 power.'); } });
+A('dinosaurs', 'natsel', 'Natural Selection', 1, 'Choose one of your minions. Destroy a minion on its base with less power.', {
+  play: async (g, p) => { const mine = g.minionsOf(p).filter(m => m.base.minions.some(x => g.powerOf(x) < g.powerOf(m)));
+    const m = await g.pickMinion(p, mine, 'Choose your minion', {}); if (!m) return;
+    const t = await g.pickMinion(p, m.base.minions.filter(x => g.powerOf(x) < g.powerOf(m)), 'Destroy which minion?', { src: ac(p) }); if (t) await g.destroy(t, ac(p)); } });
+A('dinosaurs', 'rampage', 'Rampage', 1, 'Reduce a base’s breakpoint by the power of one of your minions there until end of turn.', {
+  play: async (g, p) => { const bs = g.bases.filter(b => b.minions.some(m => m.controller === p)); const b = await g.pickBase(p, bs, 'Choose a base'); if (!b) return;
+    const m = await g.pickMinion(p, b.minions.filter(x => x.controller === p), 'Use which minion’s power?', {}); if (!m) return;
+    const amt = g.powerOf(m); b.breakMods.push({ amt, until: 'end' }); g.log(`${b.def.name} breakpoint reduced by ${amt}.`); } });
+A('dinosaurs', 'survival', 'Survival of the Fittest', 1, 'On each base with a higher-power minion, destroy the lowest-power minion.', {
+  play: async (g, p) => { for (const b of [...g.bases]) { if (b.minions.length < 2) continue;
+      const lo = Math.min(...b.minions.map(m => g.powerOf(m))), hi = Math.max(...b.minions.map(m => g.powerOf(m))); if (hi <= lo) continue;
+      const t = await g.pickMinion(p, b.minions.filter(m => g.powerOf(m) === lo), `Destroy a lowest-power minion at ${b.def.name}`, { src: ac(p) }); if (t) await g.destroy(t, ac(p)); } } });
+A('dinosaurs', 'toothclaw', 'Tooth and Claw...and Guns', 1, 'Play on one of your minions. It is not affected by other players’ cards.', {
+  target: 'minion', immune: 'all', cands: (g, p) => g.minionsOf(p) });
+A('dinosaurs', 'upgrade', 'Upgrade', 1, 'Play on a minion. It has +2 power.', { target: 'minion', pmod: 2 });
+A('dinosaurs', 'wildlife', 'Wildlife Preserve', 1, 'Play on a base. Your minions here are not affected by other players’ actions.', { target: 'base' });
+B('jungle', 'Jungle Oasis', 12, [2, 0, 0], 'No ability.');
+B('tarpits', 'Tar Pits', 16, [4, 3, 2], 'The first time each turn a minion here would be destroyed, put it on the bottom of its owner’s deck instead.');
+
+/* ---------- NINJAS ---------- */
+M('ninjas', 'ninjamaster', 'Ninja Master', 5, 1, 'You may destroy a minion on this base.', {
+  onPlay: async (g, m) => { const t = await g.pickMinion(m.controller, m.base.minions, 'Destroy a minion here?', { optional: true, src: ab(m) }); if (t) await g.destroy(t, ab(m)); } });
+M('ninjas', 'tigerassassin', 'Tiger Assassin', 4, 2, 'You may destroy a minion of power 3 or less on this base.', {
+  onPlay: async (g, m) => { const t = await g.pickMinion(m.controller, m.base.minions.filter(x => g.powerOf(x) <= 3), 'Destroy a minion of power 3 or less here?', { optional: true, src: ab(m) }); if (t) await g.destroy(t, ab(m)); } });
+M('ninjas', 'shinobi', 'Shinobi', 3, 3, 'Special: before a base scores, you may play this minion there. One Shinobi per base.');
+M('ninjas', 'acolyte', 'Ninja Acolyte', 2, 4, 'Talent: if you have not played a minion this turn, return this to your hand and play an extra minion here.', {
+  talent: { can: (g, m) => g.turn.phaseMinions === 0,
+    run: async (g, m) => { const b = m.base, p = m.controller; await g.returnToHand(m, ab(m)); await g.extraMinion(p, { base: b }); } } });
+A('ninjas', 'assassination', 'Assassination', 1, 'Play on a minion. Destroy it at the end of the turn.', { target: 'minion' });
+A('ninjas', 'disguise', 'Disguise', 1, 'Return one or two of your minions on a base to hand, then play that many extra minions there.', {
+  play: async (g, p) => { const b = await g.pickBase(p, g.bases.filter(x => x.minions.some(m => m.controller === p)), 'Choose a base'); if (!b) return;
+    const mine = () => b.minions.filter(m => m.controller === p);
+    const a = await g.pickMinion(p, mine(), 'Return which minion to your hand?', {}); if (!a) return;
+    let n = 1; let c = null; const rest = mine().filter(x => x !== a);
+    if (rest.length) c = await g.pickMinion(p, rest, 'Also return a second minion?', { optional: true });
+    await g.returnToHand(a, ac(p)); if (c) { await g.returnToHand(c, ac(p)); n = 2; }
+    for (let i = 0; i < n; i++) await g.extraMinion(p, { base: b }); } });
+A('ninjas', 'hiddenninja', 'Hidden Ninja', 1, 'Special: before a base scores, play a minion there.', { specialOnly: true });
+A('ninjas', 'infiltrate', 'Infiltrate', 2, 'Play on a base. You may destroy another action here. Talent: destroy this to cancel this base’s ability until your next turn.', {
+  target: 'base',
+  onAttach: async (g, p, card, b) => { const t = await g.pickCards(p, b.actions.filter(a => a !== card), 'Destroy another action on this base?', { optional: true }); if (t) { g.discardAction(t); g.log(`${t.def.name} destroyed.`); } },
+  talent: { can: () => true, run: async (g, a) => { const b = a.onBase, p = a.controller; g.discardAction(a); b.cancelUntil = p; g.log(`${b.def.name} abilities are cancelled until ${g.players[p].name}’s next turn.`); } } });
+A('ninjas', 'poison', 'Poison', 1, 'Play on a minion. Destroy any number of actions on it. It has -4 power.', {
+  target: 'minion', pmod: -4,
+  onAttach: async (g, p, card, m) => { const others = m.attached.filter(a => a !== card); if (!others.length) return;
+    const ch = await g.pickCards(p, others, 'Destroy any actions on this minion?', { multi: true, optional: true }); for (const a of ch || []) g.discardAction(a); } });
+A('ninjas', 'seeingstars', 'Seeing Stars', 2, 'Destroy a minion of power 3 or less.', {
+  play: async (g, p) => { const t = await g.pickMinion(p, g.allMinions().filter(x => g.powerOf(x) <= 3), 'Destroy which minion?', { src: ac(p) }); if (t) await g.destroy(t, ac(p)); } });
+A('ninjas', 'smokebomb', 'Smoke Bomb', 1, 'Play on one of your minions. It is not affected by other players’ actions.', {
+  target: 'minion', immune: 'actions', cands: (g, p) => g.minionsOf(p) });
+A('ninjas', 'deception', 'Way of Deception', 1, 'Move one of your minions to another base.', {
+  play: async (g, p) => { const t = await g.pickMinion(p, g.minionsOf(p).filter(x => g.bases.some(b => g.canMoveTo(x, b, ac(p)))), 'Move which minion?', {}); if (!t) return;
+    const d = await g.pickBase(p, g.bases.filter(b => g.canMoveTo(t, b, ac(p))), 'Move it where?'); if (d) await g.move(t, d, ac(p)); } });
+B('dojo', 'Ninja Dojo', 18, [2, 3, 2], 'After this base scores, the winner may destroy any one minion.');
+B('goju', 'Temple of Goju', 16, [4, 3, 2], 'After this base scores, each player’s highest-power minion here goes to the bottom of its owner’s deck.');
+
+/* ---------- PIRATES ---------- */
+M('pirates', 'pirateking', 'Pirate King', 5, 1, 'Special: before a base scores, you may move this minion there.');
+M('pirates', 'buccaneer', 'Buccaneer', 4, 2, 'Once per turn, if this would be destroyed, you may move it to another base instead.');
+M('pirates', 'cutlass', 'Cut Lass', 3, 3, 'You may destroy a minion here of power 2 or less.', {
+  onPlay: async (g, m) => { const t = await g.pickMinion(m.controller, m.base.minions.filter(x => g.powerOf(x) <= 2), 'Destroy a minion of power 2 or less here?', { optional: true, src: ab(m) }); if (t) await g.destroy(t, ab(m)); } });
+M('pirates', 'firstmate', 'First Mate', 2, 4, 'Special: after this base scores, you may move this minion to another base instead of the discard pile.');
+A('pirates', 'broadside', 'Broadside', 2, 'Destroy all of one player’s minions of power 2 or less on a base where you have a minion.', {
+  play: async (g, p) => { const bs = g.bases.filter(b => b.minions.some(m => m.controller === p) && b.minions.some(m => g.powerOf(m) <= 2)); const b = await g.pickBase(p, bs, 'Choose a base'); if (!b) return;
+    const ps = [...new Set(b.minions.filter(m => g.powerOf(m) <= 2).map(m => m.controller))]; let t = ps[0];
+    if (ps.length > 1) t = +(await g.pickOption(p, ps.map(i => ({ id: String(i), label: g.players[i].name })), 'Destroy whose small minions?'));
+    for (const m of b.minions.filter(x => x.controller === t && g.powerOf(x) <= 2)) await g.destroy(m, ac(p)); } });
+A('pirates', 'cannon', 'Cannon', 1, 'Destroy up to two minions of power 2 or less.', {
+  play: async (g, p) => { for (let i = 0; i < 2; i++) { const t = await g.pickMinion(p, g.allMinions().filter(x => g.powerOf(x) <= 2), i ? 'Destroy a second minion?' : 'Destroy a minion of power 2 or less?', { optional: true, src: ac(p) }); if (!t) break; await g.destroy(t, ac(p)); } } });
+A('pirates', 'dinghy', 'Dinghy', 2, 'Move up to two of your minions to other bases.', {
+  play: async (g, p) => { for (let i = 0; i < 2; i++) { const t = await g.pickMinion(p, g.minionsOf(p).filter(x => g.bases.some(b => g.canMoveTo(x, b, ac(p)))), 'Move a minion?', { optional: true }); if (!t) break;
+      const d = await g.pickBase(p, g.bases.filter(b => g.canMoveTo(t, b, ac(p))), `Move ${t.def.name} where?`); if (d) await g.move(t, d, ac(p)); } } });
+A('pirates', 'fullsail', 'Full Sail', 1, 'Move any number of your minions to other bases. Special: you may also play this before a base scores.', {
+  play: async (g, p) => { for (;;) { const t = await g.pickMinion(p, g.minionsOf(p).filter(x => g.bases.some(b => g.canMoveTo(x, b, ac(p)))), 'Move a minion? (skip when done)', { optional: true }); if (!t) break;
+      const d = await g.pickBase(p, g.bases.filter(b => g.canMoveTo(t, b, ac(p))), `Move ${t.def.name} where?`); if (d) await g.move(t, d, ac(p)); } } });
+A('pirates', 'powderkeg', 'Powderkeg', 1, 'Destroy one of your minions and all minions on its base with equal or less power.', {
+  play: async (g, p) => { const m = await g.pickMinion(p, g.minionsOf(p), 'Destroy which of your minions?', {}); if (!m) return;
+    const pw = g.powerOf(m), b = m.base; const vict = b.minions.filter(x => x !== m && g.powerOf(x) <= pw);
+    await g.destroy(m, ac(p)); for (const x of vict) await g.destroy(x, ac(p)); } });
+A('pirates', 'seadogs', 'Sea Dogs', 1, 'Name a faction. Move all other players’ minions of that faction from one base to another.', {
+  play: async (g, p) => { const fs = [...new Set(g.players.flatMap(pl => pl.factions))];
+    const f = await g.pickOption(p, fs.map(id => ({ id, label: FACTIONS[id].name })), 'Name a faction'); if (!f) return;
+    const from = g.bases.filter(b => b.minions.some(m => m.controller !== p && m.def.faction === f && !g.immune(m, ac(p)))); const b = await g.pickBase(p, from, `Move ${FACTIONS[f].name} minions from which base?`); if (!b) return;
+    const d = await g.pickBase(p, g.bases.filter(x => x !== b), 'Move them to which base?'); if (!d) return;
+    for (const m of [...b.minions]) if (m.controller !== p && m.def.faction === f && !g.immune(m, ac(p))) await g.move(m, d, ac(p)); } });
+A('pirates', 'shanghai', 'Shanghai', 1, 'Move another player’s minion to another base.', {
+  play: async (g, p) => { const t = await g.pickMinion(p, g.allMinions().filter(x => x.controller !== p && g.bases.some(b => g.canMoveTo(x, b, ac(p)))), 'Move which minion?', { src: ac(p) }); if (!t) return;
+    const d = await g.pickBase(p, g.bases.filter(b => g.canMoveTo(t, b, ac(p))), 'Move it where?'); if (d) await g.move(t, d, ac(p)); } });
+A('pirates', 'swashbuckling', 'Swashbuckling', 1, 'Each of your minions gets +1 power until the end of the turn.', {
+  play: async (g, p) => { for (const m of g.minionsOf(p)) m.temp.push({ amt: 1, until: 'end' }); g.log('Swashbuckling: your minions get +1 power.'); } });
+B('opal', 'The Grey Opal', 17, [3, 1, 1], 'After this base scores, every player except the winner may move a minion from here to another base instead of the discard pile.');
+B('tortuga', 'Tortuga', 21, [4, 3, 2], 'After this base scores and is replaced, the runner-up may move one of their minions from another base to the replacement.');
+
+/* ---------- ROBOTS ---------- */
+M('robots', 'nukebot', 'Nukebot', 5, 1, 'After this minion is destroyed, destroy each other player’s minions on this base.');
+M('robots', 'warbot', 'Warbot', 4, 2, 'This minion cannot be destroyed.', { indestructible: true });
+M('robots', 'hoverbot', 'Hoverbot', 3, 3, 'Reveal the top card of your deck. If it is a minion you may play it as an extra minion. Otherwise put it back.', {
+  onPlay: async (g, m) => { const p = m.controller; const top = g.topCard(p); if (!top) return;
+    if (isMinionCard(top) && g.legalBases(p, top, {}).length) { const ok = await g.yesno(p, `Hoverbot reveals ${top.def.name}. Play it as an extra minion?`, [top]);
+      if (ok) { g.players[p].deck.pop(); const bs = g.legalBases(p, top, {}); const b = bs.length === 1 ? bs[0] : await g.pickBase(p, bs, `Play ${top.def.name} where?`); await g.playMinion(p, top, b || bs[0]); } }
+    else g.log(`Hoverbot reveals ${top.def.name}; it goes back on top.`); } });
+M('robots', 'zapbot', 'Zapbot', 2, 4, 'You may play an extra minion of power 2 or less.', {
+  onPlay: async (g, m) => { await g.extraMinion(m.controller, { maxPower: 2, optional: true }); } });
+M('robots', 'alpha', 'Microbot Alpha', 1, 1, 'All your minions are Microbots. Gets +1 power for each of your other Microbots.', { microbot: true,
+  mod: (g, m) => m.base ? g.minionsOf(m.controller).filter(x => x !== m).length : 0 });
+M('robots', 'archive', 'Microbot Archive', 1, 1, 'After one of your Microbots (including this) is destroyed, draw a card.', { microbot: true });
+M('robots', 'fixer', 'Microbot Fixer', 1, 2, 'If this is the first minion you played this turn, you may play an extra minion. Each of your Microbots gets +1 power.', { microbot: true,
+  onPlay: async (g, m) => { if (m.first) await g.extraMinion(m.controller, { optional: true }); } });
+M('robots', 'guard', 'Microbot Guard', 1, 2, 'Destroy a minion on this base with power less than the number of minions you have here.', { microbot: true,
+  onPlay: async (g, m) => { const n = m.base.minions.filter(x => x.controller === m.controller).length; const t = await g.pickMinion(m.controller, m.base.minions.filter(x => g.powerOf(x) < n), 'Destroy a weaker minion here', { src: ab(m) }); if (t) await g.destroy(t, ab(m)); } });
+M('robots', 'reclaimer', 'Microbot Reclaimer', 1, 2, 'If this is the first minion you played this turn, you may play an extra minion. Shuffle any Microbots from your discard into your deck.', { microbot: true,
+  onPlay: async (g, m) => { const p = m.controller; if (m.first) await g.extraMinion(p, { optional: true });
+    const mb = g.players[p].discard.filter(c => c.def.microbot); if (!mb.length) return;
+    const ch = await g.pickCards(p, mb, 'Shuffle which Microbots into your deck?', { multi: true, optional: true });
+    if (ch && ch.length) { for (const c of ch) { rm(g.players[p].discard, c); g.players[p].deck.push(c); } g.shuffle(g.players[p].deck); g.log(`${g.players[p].name} shuffles ${ch.length} Microbot(s) into their deck.`); } } });
+A('robots', 'techcenter', 'Tech Center', 2, 'Choose a base. Draw a card for each of your minions there.', {
+  play: async (g, p) => { const b = await g.pickBase(p, g.bases.filter(x => x.minions.some(m => m.controller === p)), 'Choose a base'); if (b) g.draw(p, b.minions.filter(m => m.controller === p).length); } });
+B('factory', 'Factory 436-1337', 25, [2, 2, 1], 'When this base scores, the winner gains 1 VP for every 5 power they have here.');
+B('brain', 'The Central Brain', 19, [4, 2, 1], 'Each minion here has +1 power.');
+
+/* ---------- TRICKSTERS ---------- */
+M('tricksters', 'leprechaun', 'Leprechaun', 5, 1, 'After the first time each turn another player plays a minion here with less power than this, destroy it.');
+M('tricksters', 'brownie', 'Brownie', 4, 2, 'Once per turn, after another player plays a minion on another base, draw a card.');
+M('tricksters', 'gnome', 'Gnome', 3, 3, 'Special: before this base scores, you may destroy a minion here with less power than the number of minions you have here.');
+M('tricksters', 'gremlin', 'Gremlin', 2, 4, 'After this goes to the discard pile from play, draw a card. If destroyed, each other player discards a random card.');
+CARDS.pixie = { id: 'pixie', faction: 'tricksters', name: 'Pixie', type: 'fusion', power: 2, count: 2,
+  text: 'Minion: if you hold more cards than some other player, put a +1 counter on any of your minions here. Action: destroy an action to place two +1 counters among your minions.',
+  onPlay: async (g, m) => { const p = m.controller; const sz = g.players[p].hand.length; if (!g.others(p).some(i => g.players[i].hand.length < sz)) return;
+    const pool = m.base.minions.filter(x => x.controller === p);
+    for (const t of pool) { if (await g.yesno(p, `Pixie: put a +1 counter on ${t.def.name}?`)) t.counters++; } },
+  canAction: g => g.actionsInPlay().length > 0,
+  play: async (g, p) => { const as = g.actionsInPlay(); const a = await g.pickCards(p, as, 'Destroy which action?', {}); if (!a) return; g.log(`${a.def.name} destroyed.`); g.discardAction(a);
+    for (let i = 0; i < 2; i++) { const t = await g.pickMinion(p, g.minionsOf(p), 'Place a +1 counter on which minion?', {}); if (t) t.counters++; } } };
+A('tricksters', 'block', 'Block the Path', 1, 'Play on a base. For each other player, name a faction they own: those minions cannot be played here.', {
+  target: 'base',
+  onAttach: async (g, p, card) => { card.block = {}; for (const i of g.others(p)) { const fs = g.players[i].factions; card.block[i] = fs.length === 1 ? fs[0] : await g.pickOption(p, fs.map(id => ({ id, label: FACTIONS[id].name })), `Block which faction of ${g.players[i].name}?`); g.log(`${FACTIONS[card.block[i]].name} cannot be played here by ${g.players[i].name}.`); } } });
+A('tricksters', 'mist', 'Enshrouding Mist', 2, 'Play on a base. Talent: play an extra minion here.', {
+  target: 'base', talent: { can: (g, a) => g.players[a.controller].hand.some(c => isMinionCard(c) && g.canPlayMinionAt(a.controller, c, a.onBase)),
+    run: async (g, a) => { await g.extraMinion(a.controller, { base: a.onBase }); } } });
+A('tricksters', 'flametrap', 'Flame Trap', 1, 'Play on a base. After another player plays a minion here, destroy this to destroy that minion. At the start of your turn you may reduce this base’s breakpoint by 4 until end of turn.', { target: 'base' });
+A('tricksters', 'hideout', 'Hideout', 1, 'Play on a base. Other players cannot move minions here. Talent: swap this with a play-on-base action from your hand or deck, then you may destroy a minion of power 2 or less here.', {
+  target: 'base',
+  talent: { can: (g, a) => { const pl = g.players[a.controller]; return [...pl.hand, ...pl.deck].some(c => c.def.target === 'base'); },
+    run: async (g, a) => { const p = a.controller, b = a.onBase, pl = g.players[p];
+      const hand = pl.hand.filter(c => c.def.target === 'base'), deck = pl.deck.filter(c => c.def.target === 'base');
+      const c = await g.pickCards(p, [...hand, ...deck], 'Swap Hideout with which action? (hand or deck)', { optional: true }); if (!c) return;
+      g.detachAction(a);
+      const fromHand = rm(pl.hand, c); if (!fromHand) { rm(pl.deck, c); g.shuffle(pl.deck); }
+      if (a.owner !== p) g.players[a.owner].discard.push(a); else if (fromHand) pl.hand.push(a); else { pl.deck.push(a); g.shuffle(pl.deck); }
+      c.controller = p; c.onBase = b; b.actions.push(c); if (c.def.onAttach) await c.def.onAttach(g, p, c, b);
+      const t = await g.pickMinion(p, b.minions.filter(x => g.powerOf(x) <= 2), 'Destroy a minion of power 2 or less here?', { optional: true, src: ab({ controller: p }) }); if (t) await g.destroy(t, { player: p, kind: 'action' }); } } });
+A('tricksters', 'sleep', 'Mark of Sleep', 1, 'For each other player choose: until your next turn they cannot play actions, or they cannot move minions.', {
+  play: async (g, p) => { for (const i of g.others(p)) { const c = await g.pickOption(p, [{ id: 'actions', label: 'Cannot play actions' }, { id: 'move', label: 'Cannot move minions' }], `Mark of Sleep on ${g.players[i].name}`);
+      g.sleep[i] = Object.assign(g.sleep[i] || { by: p }, c === 'actions' ? { noActions: true } : { noMove: true }, { by: p }); g.log(`${g.players[i].name} ${c === 'actions' ? 'cannot play actions' : 'cannot move minions'} until ${g.players[p].name}’s next turn.`); } } });
+A('tricksters', 'piper', 'Pay the Piper', 1, 'Play on a base. After another player plays a minion here, that player discards a card.', { target: 'base' });
+A('tricksters', 'shinies', 'Take the Shinies', 1, 'Each other player discards two random cards.', {
+  play: async (g, p) => { for (const i of g.others(p)) for (let k = 0; k < 2; k++) g.randomDiscard(i); } });
+B('cave', 'Cave of Shinies', 23, [4, 2, 1], 'Once per turn, after a minion here you own is destroyed, gain 1 VP.');
+B('mushroom', 'Mushroom Kingdom', 19, [4, 3, 2], 'At the start of your turn, if you hold more cards than any other player, you may move a minion to or from this base.');
+
+/* ---------- WIZARDS ---------- */
+M('wizards', 'archmage', 'Archmage', 4, 1, 'Talent: play an extra action.', {
+  talent: { can: (g, m) => g.hasPlayableAction(m.controller), run: async (g, m) => { await g.extraAction(m.controller); } } });
+M('wizards', 'chronomage', 'Chronomage', 3, 2, 'You may play an extra action this turn.', { onPlay: async (g, m) => { await g.extraAction(m.controller); } });
+M('wizards', 'enchantress', 'Enchantress', 2, 3, 'Draw a card.', { onPlay: async (g, m) => { g.draw(m.controller, 1); } });
+M('wizards', 'neophyte', 'Neophyte', 2, 4, 'Reveal the top card of your deck. If it is an action, put it in your hand or play it as an extra action. Otherwise put it back.', {
+  onPlay: async (g, m) => { const p = m.controller; const top = g.topCard(p); if (!top) return;
+    if (top.def.type === 'action' || top.def.type === 'fusion') { const c = await g.pickOption(p, [{ id: 'hand', label: 'Put it in my hand' }, { id: 'play', label: 'Play it as an extra action' }, { id: 'back', label: 'Put it back on top' }], `Neophyte reveals ${top.def.name}`, { reveal: [top] });
+      if (c === 'hand') { g.players[p].deck.pop(); g.players[p].hand.push(top); } else if (c === 'play' && g.canPlayAction(p, top)) { g.players[p].deck.pop(); await g.playAction(p, top, { extra: true }); } }
+    else g.log(`Neophyte reveals ${top.def.name}; it goes back on top.`); } });
+A('wizards', 'massench', 'Mass Enchantment', 1, 'Reveal the top card of each other player’s deck. Play one revealed action as an extra action. Return the rest.', {
+  play: async (g, p) => { const rev = []; for (const i of g.others(p)) { const t = g.topCard(i); if (t) rev.push(t); }
+    const acts = rev.filter(c => (c.def.type === 'action' || c.def.type === 'fusion') && g.canPlayAction(p, c)); if (!acts.length) { g.log('Mass Enchantment: no action revealed.'); return; }
+    const c = await g.pickCards(p, acts, 'Play which revealed action?', { reveal: rev, optional: true }); if (!c) return;
+    rm(g.players[c.owner].deck, c); await g.playAction(p, c, { extra: true }); } });
+A('wizards', 'mystic', 'Mystic Studies', 2, 'Draw two cards.', { play: async (g, p) => { g.draw(p, 2); } });
+A('wizards', 'portal', 'Portal', 1, 'Reveal the top five cards of your deck. Put any minions among them in your hand. Return the rest in any order.', {
+  play: async (g, p) => { const pl = g.players[p]; const rev = []; for (let i = 0; i < 5; i++) { const t = g.topCard(p); if (!t) break; rev.push(pl.deck.pop()); }
+    const ms = rev.filter(isMinionCard); let take = [];
+    if (ms.length) take = (await g.pickCards(p, ms, 'Portal: take which minions into your hand?', { multi: true, optional: true, reveal: rev, preselect: true })) || [];
+    for (const c of take) { pl.hand.push(c); rm(rev, c); }
+    await g.orderOnTop(p, rev); } });
+A('wizards', 'sacrifice', 'Sacrifice', 1, 'Choose one of your minions. Draw cards equal to its power, then destroy it.', {
+  play: async (g, p) => { const m = await g.pickMinion(p, g.minionsOf(p), 'Sacrifice which minion?', {}); if (!m) return; g.draw(p, g.powerOf(m)); await g.destroy(m, ac(p)); } });
+A('wizards', 'scry', 'Scry', 1, 'Search your deck for an action, show it, put it in your hand, and shuffle.', {
+  play: async (g, p) => { const pl = g.players[p]; const acts = pl.deck.filter(c => c.def.type === 'action' || c.def.type === 'fusion');
+    if (acts.length) { const c = await g.pickCards(p, acts, 'Scry: choose an action from your deck', { optional: true }); if (c) { rm(pl.deck, c); pl.hand.push(c); g.log(`${pl.name} reveals ${c.def.name}.`); } }
+    g.shuffle(pl.deck); } });
+A('wizards', 'summon', 'Summon', 2, 'Play an extra minion.', { play: async (g, p) => { await g.extraMinion(p, { optional: true }); } });
+A('wizards', 'timeloop', 'Time Loop', 1, 'Play two extra actions.', { play: async (g, p) => { await g.extraAction(p); await g.extraAction(p); } });
+A('wizards', 'winds', 'Winds of Change', 1, 'Shuffle your hand into your deck and draw five cards. You may play an extra action.', {
+  play: async (g, p) => { const pl = g.players[p]; pl.deck.push(...pl.hand); pl.hand = []; g.shuffle(pl.deck); g.draw(p, 5); await g.extraAction(p); } });
+B('school', 'School of Wizardry', 20, [3, 2, 1], 'After this base scores, the winner looks at the top three bases of the deck and picks one to replace it.');
+B('library', 'The Great Library', 22, [4, 2, 1], 'After this base scores, every player with minions here may draw a card.');
+
+/* ---------- ZOMBIES ---------- */
+M('zombies', 'zlord', 'Zombie Lord', 5, 1, 'On each base where you have no minions, you may play an extra minion of power 2 or less from your discard pile.', {
+  onPlay: async (g, m) => { const p = m.controller; const empty = g.bases.filter(b => !b.minions.some(x => x.controller === p));
+    for (const b of empty) await g.extraMinion(p, { from: 'discard', maxPower: 2, base: b, optional: true, prompt: `Zombie Lord: play a minion at ${b.def.name}?` }); } });
+M('zombies', 'digger', 'Grave Digger', 4, 2, 'You may put a minion from your discard pile into your hand.', {
+  onPlay: async (g, m) => { const p = m.controller; const ms = g.players[p].discard.filter(isMinionCard); if (!ms.length) return;
+    const c = await g.pickCards(p, ms, 'Take which minion into your hand?', { optional: true }); if (c) { rm(g.players[p].discard, c); g.players[p].hand.push(c); } } });
+M('zombies', 'tenacious', 'Tenacious Z', 2, 3, 'Special: on your turn you may play this from your discard pile as an extra minion. One Tenacious Z per turn.');
+M('zombies', 'walker', 'Walker', 2, 4, 'Look at the top card of your deck. Discard it or put it back.', {
+  onPlay: async (g, m) => { const p = m.controller; const top = g.topCard(p); if (!top) return;
+    if (await g.yesno(p, `Walker sees ${top.def.name} on top of your deck. Discard it?`, [top])) { g.players[p].deck.pop(); g.players[p].discard.push(top); g.log('Walker discards the top card.'); } } });
+A('zombies', 'graverob', 'Grave Robbing', 2, 'Put a card from your discard pile into your hand.', {
+  play: async (g, p) => { const d = g.players[p].discard; if (!d.length) return; const c = await g.pickCards(p, d, 'Take which card into your hand?', {}); if (c) { rm(d, c); g.players[p].hand.push(c); } } });
+A('zombies', 'lendhand', 'Lend a Hand', 1, 'Shuffle any number of cards from your discard pile into your deck.', {
+  play: async (g, p) => { const pl = g.players[p]; if (!pl.discard.length) return; const ch = await g.pickCards(p, pl.discard, 'Shuffle which cards into your deck?', { multi: true, optional: true });
+    if (ch && ch.length) { for (const c of ch) { rm(pl.discard, c); pl.deck.push(c); } g.shuffle(pl.deck); } } });
+A('zombies', 'mallcrawl', 'Mall Crawl', 1, 'Search your deck for any number of cards with the same name and put them in your discard pile. Shuffle.', {
+  play: async (g, p) => { const pl = g.players[p]; const names = [...new Set(pl.deck.map(c => c.def.name))];
+    if (names.length) { const n = await g.pickOption(p, names.map(x => ({ id: x, label: `${x} (${pl.deck.filter(c => c.def.name === x).length})` })), 'Mall Crawl: which card name?', { optional: true });
+      if (n) { const grp = pl.deck.filter(c => c.def.name === n); const ch = await g.pickCards(p, grp, 'Discard which copies?', { multi: true, preselect: true, optional: true }); for (const c of ch || []) { rm(pl.deck, c); pl.discard.push(c); } } }
+    g.shuffle(pl.deck); } });
+A('zombies', 'bullets', 'Not Enough Bullets', 1, 'Put any number of minions with the same name from your discard pile into your hand.', {
+  play: async (g, p) => { const pl = g.players[p]; const ms = pl.discard.filter(isMinionCard); const names = [...new Set(ms.map(c => c.def.name))]; if (!names.length) return;
+    const n = await g.pickOption(p, names.map(x => ({ id: x, label: `${x} (${ms.filter(c => c.def.name === x).length})` })), 'Which minion name?', { optional: true }); if (!n) return;
+    const ch = await g.pickCards(p, ms.filter(c => c.def.name === n), 'Take which copies?', { multi: true, preselect: true, optional: true }); for (const c of ch || []) { rm(pl.discard, c); pl.hand.push(c); } } });
+A('zombies', 'outbreak', 'Outbreak', 1, 'Play an extra minion on a base where you have no minions.', {
+  play: async (g, p) => { await g.extraMinion(p, { baseFilter: b => !b.minions.some(m => m.controller === p), optional: true }); } });
+A('zombies', 'overrun', 'Overrun', 1, 'Play on a base. Other players cannot play minions here. Destroy this at the start of your turn.', { target: 'base' });
+A('zombies', 'keepcoming', 'They Keep Coming', 2, 'Play an extra minion from your discard pile.', {
+  play: async (g, p) => { await g.extraMinion(p, { from: 'discard', optional: true }); } });
+A('zombies', 'getyou', 'They’re Coming To Get You', 1, 'Play on a base. Once on your turn you may play a minion here from your discard pile instead of from your hand.', { target: 'base' });
+B('cemetery', 'Evans City Cemetery', 20, [5, 3, 2], 'After this base scores, the winner discards their hand and draws five cards.');
+B('mall', 'Rhodes Plaza Mall', 24, [0, 0, 0], 'When this base scores, each player gains 1 VP for each minion they have here.');
+
+/* ---------- game factory ---------- */
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+function createGame(opts) {
+  const g = { FACTIONS, CARDS, BASES };
+  const rnd = mulberry32(opts.seed != null ? opts.seed : (Date.now() & 0x7fffffff));
+  g.rand = rnd;
+  g.shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; };
+  g.host = opts.host;
+  let uid = 1; const nid = () => uid++;
+  g.logs = [];
+  g.log = msg => { g.logs.push(msg); if (g.logs.length > 500) g.logs.shift(); if (g.host.onLog) g.host.onLog(msg); };
+  g.players = opts.players.map((pl, i) => ({ idx: i, name: pl.name, factions: pl.factions.slice(), deck: [], hand: [], discard: [], vp: 0 }));
+  const N = g.players.length;
+  g.bases = []; g.baseDeck = []; g.baseDiscard = [];
+  g.current = 0; g.round = 0; g.over = false; g.winner = null; g.sleep = {};
+  g.turn = { minionsLeft: 0, actionsLeft: 0, minionsPlayed: {}, phaseMinions: 0, phase: 'setup' };
+  g.refresh = () => { if (g.host.onChange) g.host.onChange(g); };
+  g.order = from => Array.from({ length: N }, (_, i) => (from + i) % N);
+  g.others = p => g.order(p).slice(1);
+
+  /* ----- asking ----- */
+  g.ask = async (p, spec) => { g.refresh(); return g.host.ask(g, p, spec); };
+  g.pickMinion = async (p, cands, prompt, o = {}) => {
+    let c = o.src ? cands.filter(m => !g.immune(m, o.src)) : cands; if (!c.length) return null;
+    if (c.length === 1 && !o.optional && !o.cancel) { g.log(`${g.players[p].name}: ${c[0].def.name} is the only target.`); return c[0]; }
+    return (await g.ask(p, { kind: 'minion', cands: c, prompt, optional: !!o.optional, cancel: !!o.cancel })) || null; };
+  g.pickBase = async (p, cands, prompt, o = {}) => {
+    if (!cands.length) return null;
+    if (cands.length === 1 && !o.optional && !o.cancel) return cands[0];
+    return (await g.ask(p, { kind: 'base', cands, prompt, optional: !!o.optional, cancel: !!o.cancel })) || null; };
+  g.pickCards = async (p, cands, prompt, o = {}) => {
+    if (!cands.length) return o.multi ? [] : null;
+    if (!o.multi && cands.length === 1 && !o.optional && !o.reveal) return cands[0];
+    return await g.ask(p, { kind: 'cards', cands, prompt, optional: !!o.optional, multi: !!o.multi, reveal: o.reveal || null, preselect: !!o.preselect, cancel: !!o.cancel }); };
+  g.yesno = async (p, prompt, reveal) => !!(await g.ask(p, { kind: 'yesno', prompt, reveal: reveal || null }));
+  g.pickOption = async (p, options, prompt, o = {}) => {
+    if (options.length === 1 && !o.optional) return options[0].id;
+    return await g.ask(p, { kind: 'options', options, prompt, optional: !!o.optional, reveal: o.reveal || null }); };
+
+  /* ----- queries ----- */
+  g.allMinions = () => g.bases.flatMap(b => b.minions);
+  g.minionsOf = p => g.allMinions().filter(m => m.controller === p);
+  g.actionsInPlay = () => g.bases.flatMap(b => [...b.actions, ...b.minions.flatMap(m => m.attached)]);
+  g.isMicrobot = m => !!m.def.microbot || g.allMinions().some(x => x.def.id === 'alpha' && x.controller === m.controller);
+  g.baseActive = b => !(b.actions.some(a => a.def.id === 'jammed') || b.cancelUntil != null);
+  g.powerOf = m => {
+    let v = m.def.power + m.counters;
+    for (const a of m.attached) v += a.def.pmod || 0;
+    for (const t of m.temp) v += t.amt;
+    if (m.def.mod) v += m.def.mod(g, m);
+    if (m.stego && g.current !== m.controller) v += 2;
+    if (g.isMicrobot(m)) v += g.allMinions().filter(x => x.def.id === 'fixer' && x.controller === m.controller).length;
+    if (m.base && m.base.def.id === 'brain' && g.baseActive(m.base)) v += 1;
+    return Math.max(0, v);
+  };
+  g.basePower = b => b.minions.reduce((s, m) => s + g.powerOf(m), 0);
+  g.breakpoint = b => Math.max(1, b.def.bp - b.breakMods.reduce((s, x) => s + x.amt, 0));
+  g.immune = (m, src) => {
+    if (!src || src.player === m.controller || src.kind === 'base') return false;
+    for (const a of m.attached) { if (a.controller !== m.controller) continue; if (a.def.immune === 'all') return true; if (a.def.immune === 'actions' && src.kind === 'action') return true; }
+    if (src.kind === 'action' && m.base && m.base.actions.some(a => a.def.id === 'wildlife' && a.controller === m.controller)) return true;
+    return false; };
+
+  /* ----- deck helpers ----- */
+  g.draw = (p, n = 1) => { const pl = g.players[p]; let k = 0;
+    for (let i = 0; i < n; i++) { if (!pl.deck.length) { if (!pl.discard.length) break; pl.deck = g.shuffle(pl.discard); pl.discard = []; } pl.hand.push(pl.deck.pop()); k++; }
+    if (k) g.log(`${pl.name} draws ${k} card${k > 1 ? 's' : ''}.`); return k; };
+  g.topCard = p => { const pl = g.players[p]; if (!pl.deck.length && pl.discard.length) { pl.deck = g.shuffle(pl.discard); pl.discard = []; } return pl.deck.length ? pl.deck[pl.deck.length - 1] : null; };
+  g.orderOnTop = async (p, cards) => { const pl = g.players[p]; const rest = cards.slice(); const order = [];
+    while (rest.length > 1) { const c = await g.pickCards(p, rest, 'Choose the card to go on top of your deck next (top first)', {}); order.push(c); rm(rest, c); }
+    order.push(...rest); for (let i = order.length - 1; i >= 0; i--) pl.deck.push(order[i]); };
+  g.randomDiscard = p => { const pl = g.players[p]; if (!pl.hand.length) return; const c = pl.hand.splice(Math.floor(rnd() * pl.hand.length), 1)[0]; g.players[c.owner].discard.push(c); g.log(`${pl.name} discards a random card.`); };
+  g.addVP = (p, n) => { if (!n) return; g.players[p].vp += n; g.log(`${g.players[p].name} gains ${n} VP.`); };
+
+  /* ----- zones ----- */
+  g.detachAction = a => { if (a.onMinion) rm(a.onMinion.attached, a); else if (a.onBase) rm(a.onBase.actions, a); a.onMinion = a.onBase = undefined; a.controller = undefined; };
+  g.discardAction = a => { g.detachAction(a); g.players[a.owner].discard.push(a); };
+  g.strip = m => { for (const a of [...m.attached]) g.discardAction(a); if (m.base) rm(m.base.minions, m); m.base = null; m.counters = 0; m.temp = []; m.stego = false; };
+  g.canMoveTo = (m, dest, src) => {
+    if (!m.base || dest === m.base) return false;
+    if (dest.actions.some(a => a.def.id === 'hideout' && a.controller !== (src && src.player))) return false;
+    if (src && g.sleep[src.player] && g.sleep[src.player].noMove) return false;
+    if (src && g.immune(m, src)) return false;
+    return true; };
+  g.returnToHand = async (m, src) => { if (!m.base || g.immune(m, src)) return false; const n = m.def.name; g.strip(m); g.players[m.owner].hand.push(m.card); g.log(`${n} returns to ${g.players[m.owner].name}’s hand.`); return true; };
+  g.toBottom = async (m, src) => { if (!m.base || g.immune(m, src)) return false; const n = m.def.name; g.strip(m); g.players[m.owner].deck.unshift(m.card); g.log(`${n} goes to the bottom of ${g.players[m.owner].name}’s deck.`); return true; };
+  g.move = async (m, dest, src, force) => {
+    if (!force && !g.canMoveTo(m, dest, src)) return false;
+    rm(m.base.minions, m); m.base = dest; dest.minions.push(m); g.log(`${m.def.name} moves to ${dest.def.name}.`); return true; };
+  g.destroy = async (m, src) => {
+    if (!m.base) return false;
+    if (g.immune(m, src)) { g.log(`${m.def.name} is protected.`); return false; }
+    if (m.def.indestructible) { g.log(`${m.def.name} cannot be destroyed.`); return false; }
+    const b = m.base, ctrl = m.controller, def = m.def;
+    if (def.id === 'buccaneer' && m.buccTurn !== g.round) {
+      const ds = g.bases.filter(x => x !== b && g.canMoveTo(m, x, { player: ctrl, kind: 'ability' }));
+      if (ds.length && await g.yesno(ctrl, 'Buccaneer would be destroyed. Move it to another base instead?')) {
+        const d = await g.pickBase(ctrl, ds, 'Move Buccaneer to which base?'); if (d) { m.buccTurn = g.round; await g.move(m, d, { player: ctrl, kind: 'ability' }, true); return false; } } }
+    if (b.def.id === 'tarpits' && g.baseActive(b) && b.tarTurn !== g.round) {
+      b.tarTurn = g.round; g.strip(m); g.players[m.owner].deck.unshift(m.card); g.log(`Tar Pits swallow ${def.name} (bottom of deck).`); return true; }
+    const wasMicro = g.isMicrobot(m);
+    const archives = g.allMinions().filter(x => x.def.id === 'archive' && x.controller === ctrl);
+    g.strip(m); g.players[m.owner].discard.push(m.card); g.log(`${def.name} is destroyed.`);
+    if (def.id === 'nukebot') for (const x of [...b.minions]) if (x.controller !== ctrl) await g.destroy(x, { player: ctrl, kind: 'ability' });
+    if (wasMicro) for (let i = 0; i < archives.length; i++) g.draw(ctrl, 1);
+    if (def.id === 'gremlin') { g.draw(ctrl, 1); for (const i of g.others(ctrl)) g.randomDiscard(i); }
+    if (b.def.id === 'cave' && g.baseActive(b)) { b.caveTurn = b.caveTurn || {}; if (b.caveTurn[m.owner] !== g.round) { b.caveTurn[m.owner] = g.round; g.addVP(m.owner, 1); } }
+    return true; };
+
+  /* ----- playing minions ----- */
+  g.canPlayMinionAt = (p, card, base) => {
+    if (base.actions.some(a => a.def.id === 'overrun' && a.controller !== p)) return false;
+    if (base.actions.some(a => a.def.id === 'block' && a.block && a.block[p] === card.def.faction)) return false;
+    return true; };
+  g.legalBases = (p, card, o) => (o.base ? [o.base] : g.bases).filter(b => g.canPlayMinionAt(p, card, b) && (!o.baseFilter || o.baseFilter(b)));
+  g.playMinion = async (p, card, base, o = {}) => {
+    const m = { uid: card.uid, def: card.def, owner: card.owner, card, controller: p, base, counters: 0, attached: [], temp: [], talentTurn: -1, stego: false };
+    base.minions.push(m);
+    m.first = (g.turn.minionsPlayed[p] || 0) === 0; g.turn.minionsPlayed[p] = (g.turn.minionsPlayed[p] || 0) + 1;
+    if (g.turn.phase === 'play') g.turn.phaseMinions++;
+    g.log(`${g.players[p].name} plays ${m.def.name} at ${base.def.name}.`);
+    if (m.def.onPlay) await m.def.onPlay(g, m);
+    if (m.base === base) await afterMinionPlayed(p, m, base);
+    return m; };
+  async function afterMinionPlayed(p, m, base) {
+    for (const L of base.minions.filter(x => x.def.id === 'leprechaun' && x.controller !== p)) {
+      if (m.base !== base) break;
+      if (L.lepTurn !== g.round && g.powerOf(m) < g.powerOf(L)) { L.lepTurn = g.round; g.log('Leprechaun springs a trap!'); await g.destroy(m, ab(L)); } }
+    if (m.base === base) for (const a of base.actions.filter(x => x.def.id === 'flametrap' && x.controller !== p)) {
+      if (m.base !== base) break;
+      if (await g.yesno(a.controller, `Flame Trap: destroy it to destroy ${m.def.name}?`)) { g.discardAction(a); await g.destroy(m, { player: a.controller, kind: 'action' }); } }
+    if (m.base === base) for (const a of base.actions.filter(x => x.def.id === 'piper' && x.controller !== p)) {
+      const hand = g.players[p].hand; if (hand.length) { const c = await g.pickCards(p, hand, 'Pay the Piper: discard a card', {}); if (c) { rm(hand, c); g.players[c.owner].discard.push(c); g.log(`${g.players[p].name} discards ${c.def.name}.`); } } }
+    for (const br of g.allMinions().filter(x => x.def.id === 'brownie' && x.controller !== p && x.base !== base)) {
+      if (br.brTurn !== g.round) { br.brTurn = g.round; g.draw(br.controller, 1); } }
+    if (base.def.id === 'homeworld' && g.baseActive(base) && !g.turn.hw) { g.turn.hw = true; await g.extraMinion(p, { maxPower: 2, base, optional: true, prompt: 'The Homeworld: play an extra minion of power 2 or less?' }); }
+  }
+  g.extraMinion = async (p, o = {}) => {
+    const pl = g.players[p]; const srcArr = o.from === 'discard' ? pl.discard : pl.hand;
+    const cands = srcArr.filter(c => isMinionCard(c) && (o.maxPower == null || c.def.power <= o.maxPower) && g.legalBases(p, c, o).length);
+    if (!cands.length) { g.log(`${pl.name} has no minion to play.`); return null; }
+    const c = await g.pickCards(p, cands, o.prompt || 'Choose an extra minion to play', { optional: !!o.optional }); if (!c) return null;
+    const bs = g.legalBases(p, c, o);
+    const base = bs.length === 1 ? bs[0] : (await g.pickBase(p, bs, `Play ${c.def.name} where?`)) || bs[0];
+    rm(srcArr, c); return await g.playMinion(p, c, base, o); };
+
+  /* ----- playing actions ----- */
+  g.actionTarget = (p, card) => card.def.target;
+  g.canPlayAction = (p, card) => {
+    const d = card.def; if (d.specialOnly || (d.type !== 'action' && d.type !== 'fusion')) return false;
+    if (g.sleep[p] && g.sleep[p].noActions) return false;
+    if (d.canAction && !d.canAction(g, p)) return false;
+    if (d.target === 'minion') return (d.cands ? d.cands(g, p) : g.allMinions()).length > 0;
+    return true; };
+  g.hasPlayableAction = p => g.players[p].hand.some(c => g.canPlayAction(p, c));
+  g.playAction = async (p, card, o = {}) => {
+    const d = card.def; let target = o.target || null;
+    if (d.target === 'base' && !target) target = await g.pickBase(p, g.bases, `Play ${d.name} on which base?`);
+    if (d.target === 'minion' && !target) target = await g.pickMinion(p, d.cands ? d.cands(g, p) : g.allMinions(), `Play ${d.name} on which minion?`, { src: ac(p) });
+    if ((d.target === 'base' || d.target === 'minion') && !target) { g.players[p].hand.push(card); return false; }
+    g.log(`${g.players[p].name} plays ${d.name}${target ? ' on ' + (target.def.name) : ''}.`);
+    card.controller = p;
+    if (d.target === 'base') { card.onBase = target; target.actions.push(card); if (d.onAttach) await d.onAttach(g, p, card, target); }
+    else if (d.target === 'minion') { card.onMinion = target; target.attached.push(card); if (d.onAttach) await d.onAttach(g, p, card, target); }
+    else { await d.play(g, p, card); card.controller = undefined; g.players[card.owner].discard.push(card); }
+    return true; };
+  g.extraAction = async (p) => {
+    const cands = g.players[p].hand.filter(c => g.canPlayAction(p, c)); if (!cands.length) { g.log(`${g.players[p].name} has no action to play.`); return false; }
+    const c = await g.pickCards(p, cands, 'Choose an extra action to play', { optional: true }); if (!c) return false;
+    rm(g.players[p].hand, c); return await g.playAction(p, c, { extra: true }); };
+  g.playableModes = (p, card) => {
+    const modes = []; if (g.turn.phase !== 'play' || g.current !== p) return modes;
+    if (isMinionCard(card) && g.turn.minionsLeft > 0 && g.legalBases(p, card, {}).length) modes.push('minion');
+    if ((card.def.type === 'action' || card.def.type === 'fusion') && g.turn.actionsLeft > 0 && g.canPlayAction(p, card)) modes.push('action');
+    return modes; };
+  g.playCardFromHand = async (p, card) => {
+    const modes = g.playableModes(p, card); if (!modes.length) return false;
+    let mode = modes[0];
+    if (modes.length > 1) mode = await g.pickOption(p, [{ id: 'minion', label: 'Play as a minion' }, { id: 'action', label: 'Play as an action' }], `How do you want to play ${card.def.name}?`, { optional: true });
+    if (!mode) return false;
+    if (mode === 'minion') {
+      const bs = g.legalBases(p, card, {}); const base = await g.pickBase(p, bs, `Play ${card.def.name} where?`, { cancel: true }); if (!base) return false;
+      rm(g.players[p].hand, card); g.turn.minionsLeft--; await g.playMinion(p, card, base); return true; }
+    const d = card.def; let target = null;
+    if (d.target === 'base') { target = await g.pickBase(p, g.bases, `Play ${d.name} on which base?`, { cancel: true }); if (!target) return false; }
+    if (d.target === 'minion') { target = await g.pickMinion(p, d.cands ? d.cands(g, p) : g.allMinions(), `Play ${d.name} on which minion?`, { cancel: true, src: ac(p) }); if (!target) return false; }
+    rm(g.players[p].hand, card); g.turn.actionsLeft--; await g.playAction(p, card, { target }); return true; };
+
+  /* ----- turn options (talents and special plays) ----- */
+  g.turnOptions = p => {
+    const o = []; const pl = g.players[p];
+    for (const m of g.minionsOf(p)) if (m.def.talent && m.talentTurn !== g.round && m.def.talent.can(g, m))
+      o.push({ id: 't' + m.uid, label: `Talent: ${m.def.name} at ${m.base.def.name}`, run: async () => { m.talentTurn = g.round; await m.def.talent.run(g, m); } });
+    for (const b of g.bases) for (const a of b.actions) if (a.controller === p && a.def.talent && a.talentTurn !== g.round && a.def.talent.can(g, a))
+      o.push({ id: 't' + a.uid, label: `Talent: ${a.def.name} at ${b.def.name}`, run: async () => { a.talentTurn = g.round; await a.def.talent.run(g, a); } });
+    if (!g.turn.tz) { const z = pl.discard.find(c => c.def.id === 'tenacious');
+      if (z && g.legalBases(p, z, {}).length) o.push({ id: 'tz', label: 'Play Tenacious Z from your discard pile (extra minion)', run: async () => {
+        const bs = g.legalBases(p, z, {}); const b = await g.pickBase(p, bs, 'Play Tenacious Z where?', { cancel: true }); if (!b) return;
+        g.turn.tz = true; rm(pl.discard, z); await g.playMinion(p, z, b); } }); }
+    if (g.turn.minionsLeft > 0) for (const b of g.bases) for (const a of b.actions) if (a.def.id === 'getyou' && a.controller === p && a.tcTurn !== g.round) {
+      const ms = pl.discard.filter(c => isMinionCard(c) && g.canPlayMinionAt(p, c, b));
+      if (ms.length) o.push({ id: 'tc' + a.uid, label: `Play a minion from your discard at ${b.def.name} (instead of from hand)`, run: async () => {
+        const c = await g.pickCards(p, ms, 'Play which minion from your discard pile?', { cancel: true, optional: true }); if (!c) return;
+        a.tcTurn = g.round; g.turn.minionsLeft--; rm(pl.discard, c); await g.playMinion(p, c, b); } }); }
+    return o; };
+
+  /* ----- special windows ----- */
+  async function specialsWindow(optsFn) {
+    let passes = 0, i = g.current, guard = 0;
+    while (passes < N && guard++ < 200) {
+      const p = i % N; i++;
+      const opts = optsFn(p);
+      if (!opts.length) { passes++; continue; }
+      const id = await g.pickOption(p, opts.map(o => ({ id: o.id, label: o.label })).concat([{ id: '__pass', label: 'Pass' }]), 'Use a Special ability?', { optional: false });
+      if (!id || id === '__pass') { passes++; continue; }
+      passes = 0; await opts.find(o => o.id === id).run();
+    } }
+  function beforeOpts(p, b, used) {
+    const opts = []; const hand = g.players[p].hand;
+    const sh = hand.find(c => c.def.id === 'shinobi');
+    if (sh && !used.shin && g.canPlayMinionAt(p, sh, b)) opts.push({ id: 'shinobi', label: `Shinobi: play it from hand at ${b.def.name}`, run: async () => { used.shin = true; rm(hand, sh); await g.playMinion(p, sh, b); } });
+    const hn = hand.find(c => c.def.id === 'hiddenninja');
+    if (hn && !(g.sleep[p] && g.sleep[p].noActions) && hand.some(c => c !== hn && isMinionCard(c) && g.canPlayMinionAt(p, c, b))) opts.push({ id: 'hn', label: `Hidden Ninja: play a minion at ${b.def.name}`, run: async () => {
+      const cands = hand.filter(c => c !== hn && isMinionCard(c) && g.canPlayMinionAt(p, c, b)); const c = await g.pickCards(p, cands, 'Hidden Ninja: choose a minion to play', {});
+      rm(hand, hn); g.players[hn.owner].discard.push(hn); rm(hand, c); g.log(`${g.players[p].name} plays Hidden Ninja.`); await g.playMinion(p, c, b); } });
+    const fs = hand.find(c => c.def.id === 'fullsail');
+    if (fs && !(g.sleep[p] && g.sleep[p].noActions) && g.minionsOf(p).length) opts.push({ id: 'fullsail', label: 'Full Sail: move your minions to other bases', run: async () => {
+      rm(hand, fs); g.log(`${g.players[p].name} plays Full Sail.`); await fs.def.play(g, p, fs); g.players[fs.owner].discard.push(fs); } });
+    for (const m of g.minionsOf(p)) if (m.def.id === 'pirateking' && m.base !== b && g.canMoveTo(m, b, { player: p, kind: 'ability' }) && !m.pkTurn)
+      opts.push({ id: 'pk' + m.uid, label: `Pirate King: move to ${b.def.name}`, run: async () => { await g.move(m, b, { player: p, kind: 'ability' }); } });
+    for (const m of b.minions) if (m.def.id === 'gnome' && m.controller === p && !used.gn.has(m.uid)) {
+      const n = b.minions.filter(x => x.controller === p).length; const cands = b.minions.filter(x => g.powerOf(x) < n && !g.immune(x, ab(m)));
+      if (cands.length) opts.push({ id: 'gn' + m.uid, label: 'Gnome: destroy a weaker minion here', run: async () => { used.gn.add(m.uid); const t = await g.pickMinion(p, cands, 'Gnome: destroy which minion?', { src: ab(m) }); if (t) await g.destroy(t, ab(m)); } }); }
+    return opts; }
+  function afterOpts(p, b) {
+    const opts = [];
+    for (const m of b.minions) if (m.controller === p) {
+      if (m.def.id === 'scout') opts.push({ id: 'sc' + m.uid, label: 'Scout: return it to your hand', run: async () => { await g.returnToHand(m, ab(m)); } });
+      if (m.def.id === 'firstmate') { const ds = g.bases.filter(x => x !== b && g.canMoveTo(m, x, ab(m)));
+        if (ds.length) opts.push({ id: 'fm' + m.uid, label: 'First Mate: move to another base', run: async () => { const d = await g.pickBase(p, ds, 'Move First Mate to which base?'); if (d) await g.move(m, d, ab(m)); } }); } }
+    return opts; }
+
+  /* ----- scoring ----- */
+  function standings(b) {
+    const pw = {}; for (const m of b.minions) pw[m.controller] = (pw[m.controller] || 0) + g.powerOf(m);
+    const e = Object.keys(pw).map(k => ({ p: +k, power: pw[k] })).sort((x, y) => y.power - x.power);
+    e.forEach((x, i) => { x.place = i > 0 && x.power === e[i - 1].power ? e[i - 1].place : i; });
+    const pos = {}; g.order(g.current).forEach((pp, i) => { pos[pp] = i; });
+    e.sort((x, y) => x.place - y.place || pos[x.p] - pos[y.p]);
+    return e; }
+  g.scoreBases = async () => {
+    for (let guard = 0; guard < 40; guard++) {
+      const ready = g.bases.filter(b => g.basePower(b) >= g.breakpoint(b)); if (!ready.length) return;
+      const b = ready.length === 1 ? ready[0] : await g.pickBase(g.current, ready, 'Several bases are ready. Which scores first?');
+      await scoreBase(b || ready[0]); } };
+  async function scoreBase(b) {
+    g.log(`${b.def.name} is ready to score!`); g.refresh();
+    const used = { shin: false, gn: new Set() };
+    await specialsWindow(p => beforeOpts(p, b, used));
+    if (!g.bases.includes(b)) return;
+    const st = standings(b); const active = g.baseActive(b);
+    for (const e of st) { const v = b.def.vp[e.place] || 0; if (v) g.addVP(e.p, v); }
+    g.log(`Scores: ${st.map(e => `${g.players[e.p].name} ${e.power}`).join(', ')}.`);
+    const winners = st.filter(e => e.place === 0).map(e => e.p);
+    if (active) {
+      if (b.def.id === 'factory') for (const w of st.filter(e => e.place === 0)) g.addVP(w.p, Math.floor(w.power / 5));
+      if (b.def.id === 'mall') for (const e of st) g.addVP(e.p, b.minions.filter(m => m.controller === e.p).length);
+      if (b.def.id === 'mothership') for (const w of winners) { const t = await g.pickMinion(w, b.minions.filter(m => m.controller === w && g.powerOf(m) <= 3), 'Mothership: return a minion of power 3 or less to hand?', { optional: true }); if (t) await g.returnToHand(t, { player: w, kind: 'base' }); }
+      if (b.def.id === 'dojo') for (const w of winners) { const t = await g.pickMinion(w, g.allMinions(), 'Ninja Dojo: destroy any one minion?', { optional: true }); if (t) await g.destroy(t, { player: w, kind: 'base' }); }
+      if (b.def.id === 'goju') for (const e of st) { const mine = b.minions.filter(m => m.controller === e.p); if (!mine.length) continue; const hi = Math.max(...mine.map(m => g.powerOf(m)));
+        const t = await g.pickMinion(e.p, mine.filter(m => g.powerOf(m) === hi), 'Temple of Goju: your highest-power minion goes to the bottom of its deck', {}); if (t) await g.toBottom(t, { player: e.p, kind: 'base' }); }
+      if (b.def.id === 'opal') for (const e of st) if (e.place > 0) { const mine = b.minions.filter(m => m.controller === e.p && g.bases.some(x => x !== b));
+        const t = await g.pickMinion(e.p, mine, 'The Grey Opal: move a minion to another base instead of discarding it?', { optional: true }); if (t) { const d = await g.pickBase(e.p, g.bases.filter(x => x !== b), 'Move it where?'); if (d) await g.move(t, d, { player: e.p, kind: 'base' }, true); } }
+      if (b.def.id === 'cemetery') for (const w of winners) { const pl = g.players[w]; for (const c of pl.hand.splice(0)) g.players[c.owner].discard.push(c); g.draw(w, 5); }
+      if (b.def.id === 'library') for (const e of st) if (await g.yesno(e.p, 'The Great Library: draw a card?')) g.draw(e.p, 1);
+    }
+    await specialsWindow(p => afterOpts(p, b));
+    // discard everything on the base
+    for (const m of [...b.minions]) { const ctrl = m.controller, gr = m.def.id === 'gremlin'; g.strip(m); g.players[m.owner].discard.push(m.card); if (gr) g.draw(ctrl, 1); }
+    for (const a of [...b.actions]) g.discardAction(a);
+    const idx = g.bases.indexOf(b); g.baseDiscard.push(b.def);
+    let nd = null;
+    if (active && b.def.id === 'school' && g.baseDeck.length) {
+      const top = g.baseDeck.splice(Math.max(0, g.baseDeck.length - 3)); const w = winners[0];
+      const id = await g.pickOption(w, top.map((d, i) => ({ id: String(i), label: `${d.name} (breakpoint ${d.bp}, ${d.vp.join('/')})` })), 'School of Wizardry: choose the new base');
+      nd = top.splice(+id, 1)[0]; const order = [];
+      const rest = top.slice(); while (rest.length > 1) { const k = await g.pickOption(w, rest.map((d, i) => ({ id: String(i), label: d.name })), 'Put which base on top of the deck next?'); order.push(rest.splice(+k, 1)[0]); }
+      order.push(...rest); for (let i = order.length - 1; i >= 0; i--) g.baseDeck.push(order[i]); }
+    if (!nd) nd = drawBaseDef();
+    const nb = newBase(nd); if (nb) g.bases.splice(idx, 1, nb); else g.bases.splice(idx, 1);
+    g.log(`${b.def.name} is replaced${nb ? ' by ' + nb.def.name : ''}.`);
+    if (active && b.def.id === 'tortuga' && nb) for (const e of st.filter(x => x.place === 1)) {
+      const mine = g.minionsOf(e.p).filter(m => m.base !== nb); const t = await g.pickMinion(e.p, mine, 'Tortuga: move one of your minions to the replacement base?', { optional: true });
+      if (t) await g.move(t, nb, { player: e.p, kind: 'base' }, true); }
+  }
+  function drawBaseDef() { if (!g.baseDeck.length && g.baseDiscard.length) { g.baseDeck = g.shuffle(g.baseDiscard); g.baseDiscard = []; } return g.baseDeck.pop() || null; }
+  function newBase(def) { return def ? { uid: nid(), def, minions: [], actions: [], breakMods: [], cancelUntil: null } : null; }
+
+  /* ----- turns ----- */
+  async function startTurn(p) {
+    g.turn.phase = 'start';
+    for (const m of g.allMinions()) if (m.controller === p) m.stego = false;
+    for (const b of g.bases) { if (b.cancelUntil === p) b.cancelUntil = null; for (const a of [...b.actions]) if (a.def.id === 'overrun' && a.controller === p) g.discardAction(a); }
+    for (const k of Object.keys(g.sleep)) if (g.sleep[k].by === p) delete g.sleep[k];
+    for (const b of [...g.bases]) for (const a of b.actions.filter(x => x.def.id === 'flametrap' && x.controller === p))
+      if (await g.yesno(p, `Flame Trap: reduce ${b.def.name}’s breakpoint by 4 this turn?`)) { b.breakMods.push({ amt: 4, until: 'end' }); g.log(`${b.def.name} breakpoint -4 this turn.`); }
+    for (const b of [...g.bases]) if (b.def.id === 'mushroom' && g.baseActive(b)) {
+      const mine = g.players[p].hand.length; if (g.others(p).every(i => g.players[i].hand.length < mine)) {
+        const src = { player: p, kind: 'base' };
+        const cands = g.allMinions().filter(m => (m.base === b ? g.bases.some(x => x !== b && g.canMoveTo(m, x, src)) : g.canMoveTo(m, b, src)));
+        const t = await g.pickMinion(p, cands, 'Mushroom Kingdom: move a minion to or from this base?', { optional: true }); if (!t) continue;
+        const d = t.base === b ? await g.pickBase(p, g.bases.filter(x => x !== b && g.canMoveTo(t, x, src)), 'Move it where?') : b; if (d) await g.move(t, d, src); } }
+  }
+  async function endTurn(p) {
+    g.turn.phase = 'end';
+    for (const b of [...g.bases]) for (const m of [...b.minions]) for (const a of m.attached.filter(x => x.def.id === 'assassination')) if (m.base) { g.log('Assassination strikes.'); await g.destroy(m, { player: a.controller, kind: 'action' }); }
+    for (const m of g.allMinions()) m.temp = m.temp.filter(t => t.until !== 'end');
+    for (const b of g.bases) b.breakMods = b.breakMods.filter(x => x.until !== 'end');
+    const top = Math.max(...g.players.map(x => x.vp));
+    if (top >= 15) { const lead = g.players.filter(x => x.vp === top); if (lead.length === 1) { g.over = true; g.winner = lead[0].idx; g.log(`${lead[0].name} wins with ${top} VP!`); } else g.log('Tied at the top. Play continues until someone leads.'); }
+  }
+  g.takeTurn = async () => {
+    const p = g.current; g.round++;
+    g.turn = { minionsLeft: 1, actionsLeft: 1, minionsPlayed: {}, phaseMinions: 0, phase: 'start', hw: false, tz: false };
+    g.log(`— ${g.players[p].name}’s turn —`);
+    await startTurn(p);
+    g.turn.phase = 'play';
+    for (let guard = 0; guard < 400; guard++) {
+      g.refresh();
+      const opts = g.turnOptions(p);
+      const act = await g.host.chooseTurnAction(g, p, { options: opts });
+      if (!act || act.type === 'end') break;
+      if (act.type === 'play') await g.playCardFromHand(p, act.card);
+      else if (act.type === 'opt') { const o = opts.find(x => x.id === act.id); if (o) await o.run(); }
+    }
+    g.turn.phase = 'score'; await g.scoreBases();
+    g.turn.phase = 'draw'; g.draw(p, 2);
+    const pl = g.players[p];
+    while (pl.hand.length > 10) { const c = await g.pickCards(p, pl.hand, `Hand limit: discard down to 10 (${pl.hand.length} cards)`, {}); rm(pl.hand, c); g.players[c.owner].discard.push(c); g.log(`${pl.name} discards ${c.def.name}.`); }
+    await endTurn(p);
+    if (!g.over) g.current = (p + 1) % N;
+    g.refresh(); };
+
+  /* ----- setup ----- */
+  g.setup = async () => {
+    for (const pl of g.players) { for (const f of pl.factions) for (const id of Object.keys(CARDS)) if (CARDS[id].faction === f) for (let i = 0; i < CARDS[id].count; i++) pl.deck.push({ uid: nid(), def: CARDS[id], owner: pl.idx }); g.shuffle(pl.deck); }
+    const baseIds = Object.keys(BASES).filter(id => BASES[id]); g.baseDeck = g.shuffle(baseIds.map(id => BASES[id]));
+    for (let i = 0; i < N + 1; i++) { const nb = newBase(drawBaseDef()); if (nb) g.bases.push(nb); }
+    for (const pl of g.players) g.draw(pl.idx, 5);
+    g.logs.length = 0;
+    for (const pl of g.players) { if (!pl.hand.some(isMinionCard) && await g.yesno(pl.idx, 'Your hand has no minions. Take a mulligan (draw a new five)?', pl.hand)) {
+        const old = pl.hand.splice(0); const n = []; for (let i = 0; i < 5 && pl.deck.length; i++) n.push(pl.deck.pop()); pl.hand.push(...n); pl.deck.push(...old); g.shuffle(pl.deck); g.log(`${pl.name} takes a mulligan.`); } }
+    g.current = opts.first != null ? opts.first : Math.floor(rnd() * N);
+    g.log(`${g.players[g.current].name} goes first.`); };
+  g.run = async () => { await g.setup(); while (!g.over) await g.takeTurn(); return g.winner; };
+  return g;
+}
+
+const api = { createGame, FACTIONS, CARDS, BASES };
+if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.SmashUp = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+(function () {
+'use strict';
+const SU = window.SmashUp;
+const { FACTIONS, CARDS } = SU;
+const $app = document.getElementById('app'), $layer = document.getElementById('layer');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fkeys = Object.keys(FACTIONS);
+const fcol = id => FACTIONS[id].color;
+
+const ui = { screen: 'setup', g: null, seat: null, cover: null, prompt: null, turn: null, selCard: null, inspect: null, modal: null, showLog: false,
+  setup: { n: 2, players: [ { name: 'Player 1', f: ['pirates', 'zombies'] }, { name: 'Player 2', f: ['dinosaurs', 'wizards'] }, { name: 'Player 3', f: [] }, { name: 'Player 4', f: [] } ] } };
+try { const s = JSON.parse(localStorage.getItem('suSetup') || 'null'); if (s && s.players && s.players.length === 4) ui.setup = s; } catch (e) {}
+const saveSetup = () => { try { localStorage.setItem('suSetup', JSON.stringify(ui.setup)); } catch (e) {} };
+
+/* ---------- host (bridge between engine and screen) ---------- */
+const host = {
+  onChange() { render(); },
+  ask(g, p, spec) { return new Promise(res => { ui.prompt = { p, spec, res, sel: new Set(spec.preselect ? spec.cands.map(c => c.uid) : []) }; ui.turn = ui.turn; needSeat(p); render(); }); },
+  chooseTurnAction(g, p, info) { return new Promise(res => { ui.prompt = null; ui.turn = { p, info, res }; ui.selCard = null; ui.inspect = null; needSeat(p); render(); }); }
+};
+function needSeat(p) { if (ui.seat !== p) ui.cover = p; }
+function answer(v) { const pr = ui.prompt; ui.prompt = null; render(); pr.res(v); }
+function act(a) { const t = ui.turn; ui.turn = null; ui.selCard = null; ui.inspect = null; render(); t.res(a); }
+
+/* ---------- helpers ---------- */
+const pname = i => esc(ui.g.players[i].name);
+function chip(id) { return `<span class="chip" style="--f:${fcol(id)}"><i></i>${FACTIONS[id].name}</span>`; }
+function cardTile(c, o = {}) {
+  const d = c.def; const isM = d.type === 'minion' || d.type === 'fusion';
+  const cls = ['card']; if (o.sel) cls.push('sel'); if (o.off) cls.push('off'); if (o.reveal) cls.push('reveal'); if (o.chosen) cls.push('chosen');
+  return `<button class="${cls.join(' ')}" style="--f:${fcol(d.faction)}" data-act="${o.act || 'noop'}" data-uid="${c.uid}" title="${esc(d.text)}" ${o.reveal ? 'tabindex="-1"' : ''}>
+    <span class="nm">${esc(d.name)}</span><span class="ty"><span>${d.type === 'fusion' ? 'Minion / Action' : d.type}</span>${isM ? `<b>${d.power}</b>` : ''}</span></button>`; }
+function find(uid) {
+  const g = ui.g; for (const b of g.bases) { if (b.uid === uid) return b; for (const m of b.minions) { if (m.uid === uid) return m; for (const a of m.attached) if (a.uid === uid) return a; } for (const a of b.actions) if (a.uid === uid) return a; }
+  for (const pl of g.players) for (const c of [...pl.hand, ...pl.deck, ...pl.discard]) if (c.uid === uid) return c;
+  const pr = ui.prompt; if (pr && pr.spec.cands) { const c = pr.spec.cands.concat(pr.spec.reveal || []).find(x => x.uid === uid); if (c) return c; }
+  return null; }
+
+/* ---------- screens ---------- */
+function renderSetup() {
+  const s = ui.setup; const used = new Set(); for (let i = 0; i < s.n; i++) s.players[i].f.forEach(f => used.add(f));
+  const ready = s.players.slice(0, s.n).every(p => p.f.length === 2 && p.name.trim());
+  let h = `<header class="hero"><h1 class="logo"><span class="a">SMASH</span><span class="b">UP</span></h1>
+    <p class="tag">Pick two factions each, shuffle them into one 40-card deck, and fight over the bases. Pass this one screen around the table; hands stay hidden between turns.</p></header>
+    <div class="row" style="margin-top:18px"><span class="label">Players</span><div class="seg" role="group" aria-label="Number of players">${[2, 3, 4].map(n => `<button data-act="n" data-n="${n}" aria-pressed="${s.n === n}">${n}</button>`).join('')}</div>
+    <button class="btn ghost" data-act="rand">Deal random factions</button></div>
+    <div class="setup-grid">`;
+  for (let i = 0; i < s.n; i++) { const p = s.players[i];
+    h += `<section class="pcard"><input type="text" id="pn${i}" value="${esc(p.name)}" maxlength="18" aria-label="Player ${i + 1} name" data-pn="${i}">
+      <div class="label">Choose 2 factions (${p.f.length}/2)</div><div class="fgrid">${fkeys.map(f => { const on = p.f.includes(f); const dis = !on && (used.has(f) || p.f.length >= 2);
+        return `<button class="fpick" style="--f:${fcol(f)}" data-act="pf" data-i="${i}" data-f="${f}" aria-pressed="${on}" ${dis ? 'disabled' : ''}><i></i>${FACTIONS[f].name}</button>`; }).join('')}</div>
+      <div class="btxt">${p.f.map(f => FACTIONS[f].blurb).join(' ')}</div></section>`; }
+  h += `</div><div class="row" style="margin-top:22px"><button class="btn primary" data-act="start" ${ready ? '' : 'disabled'}>Deal the cards</button>${ready ? '' : '<span class="btxt">Each player needs a name and two different factions.</span>'}</div>
+    <details class="rules"><summary>Rules at a glance</summary><ul>
+      <li>On your turn play one minion and one action (in any order), use talents, then bases that reached their breakpoint score, you draw 2 cards, and the turn passes left.</li>
+      <li>Bases score only at the end of your turn. Top three in power earn the VP shown (for example 4/2/1). Ties share the higher place.</li>
+      <li>First to 15 VP at the end of a turn wins. A tie at the top keeps the game going.</li>
+      <li>Included: the eight original factions and their 16 bases. Titans and expansion decks are not in this version.</li>
+      <li>Tooth and Claw can only be played on your own minions here, a small simplification.</li></ul></details>`;
+  return h; }
+
+function renderBoard() {
+  const g = ui.g, pr = ui.prompt, spec = pr && pr.spec;
+  const candM = spec && spec.kind === 'minion' ? new Set(spec.cands.map(m => m.uid)) : null;
+  const candB = spec && spec.kind === 'base' ? new Set(spec.cands.map(b => b.uid)) : null;
+  let h = '<div class="bases">';
+  for (const b of g.bases) {
+    const pw = g.basePower(b), bp = g.breakpoint(b), ready = pw >= bp, active = g.baseActive(b);
+    const byP = g.order(g.current).filter(i => b.minions.some(m => m.controller === i));
+    h += `<article class="base ${candB && candB.has(b.uid) ? 'pick' : ''} ${active ? '' : 'cancelled'}" ${candB && candB.has(b.uid) ? `data-act="pickbase" data-uid="${b.uid}" role="button" tabindex="0"` : `data-act="inspectbase" data-uid="${b.uid}"`}>
+      <h3>${esc(b.def.name)}</h3>
+      <div class="meta"><span class="mono"><b>${pw}</b> / ${bp}</span><span class="vps">${b.def.vp.map(v => `<span>${v}</span>`).join('')}</span>${active ? '' : '<span class="chip">abilities off</span>'}${ready ? '<span class="chip" style="--f:var(--good)">ready to score</span>' : ''}</div>
+      <div class="meter ${ready ? 'ready' : ''}"><i style="width:${Math.min(100, Math.round(pw / bp * 100))}%"></i></div>
+      <div class="btxt">${esc(b.def.text)}</div>`;
+    if (b.actions.length) h += `<div class="acts">${b.actions.map(a => `<button class="act" style="--f:${fcol(a.def.faction)}" data-act="inspect" data-uid="${a.uid}">${esc(a.def.name)} <small>${pname(a.controller)}</small></button>`).join('')}</div>`;
+    if (!b.minions.length) h += '<div class="empty">No minions yet.</div>';
+    for (const i of byP) { const ms = b.minions.filter(m => m.controller === i); const tot = ms.reduce((s, m) => s + g.powerOf(m), 0);
+      h += `<div class="pm"><div class="who"><span>${pname(i)}</span><span class="mono">${tot}</span></div><div class="mins">${ms.map(m => {
+        const pw2 = g.powerOf(m), cls = ['mn']; if (candM) cls.push(candM.has(m.uid) ? 'pick' : 'dim'); if (pr && pr.sel.has(m.uid)) cls.push('sel');
+        const tags = [...m.attached.map(a => a.def.name), ...(m.counters ? [`+${m.counters} counter${m.counters > 1 ? 's' : ''}`] : []), ...(m.stego ? ['braced'] : [])];
+        return `<button class="${cls.join(' ')}" style="--f:${fcol(m.def.faction)}" data-act="${candM && candM.has(m.uid) ? 'pickminion' : 'inspect'}" data-uid="${m.uid}" title="${esc(m.def.text)}"><span class="t"><span>${esc(m.def.name)}</span><span class="pw ${pw2 > m.def.power ? 'up' : pw2 < m.def.power ? 'down' : ''}">${pw2}</span></span>${tags.length ? `<small>${esc(tags.join(' · '))}</small>` : ''}</button>`; }).join('')}</div></div>`; }
+    h += '</article>'; }
+  return h + '</div>'; }
+
+function renderGame() {
+  const g = ui.g, t = g.turn; const seat = ui.seat; const myTurn = ui.turn && ui.turn.p === seat && !ui.cover;
+  let h = `<div class="score">${g.players.map(pl => `<div class="pl ${g.current === pl.idx ? 'turn' : ''}"><span class="nm">${esc(pl.name)}</span><span class="vp">${pl.vp}<small>VP</small></span>
+    <span class="fs">${pl.factions.map(chip).join('')}</span><span class="cnt"><span>Hand ${pl.hand.length}</span><span>Deck ${pl.deck.length}</span><span>Discard ${pl.discard.length}</span></span></div>`).join('')}</div>
+    <div class="bar"><div class="phase">${g.over ? 'Game over' : `${pname(g.current)}’s turn · minion <b>${t.minionsLeft}</b> · action <b>${t.actionsLeft}</b> left`}</div>
+      <div class="row"><button class="btn ghost" data-act="discards">Discard piles</button><button class="btn ghost" data-act="log">${ui.showLog ? 'Hide log' : 'Show log'}</button><button class="btn ghost" data-act="quit">New game</button></div></div>`;
+  h += renderBoard();
+  if (ui.showLog) h += `<div class="sect"><h2>Table log</h2></div><ul class="log">${g.logs.slice(-60).reverse().map(l => `<li class="${l.startsWith('—') ? 'turn' : ''}">${esc(l)}</li>`).join('')}</ul>`;
+  if (seat != null && !ui.cover && !g.over) {
+    const pl = g.players[seat]; const mode = ui.turn && ui.turn.p === seat;
+    h += `<div class="sect"><h2>${esc(pl.name)}’s hand</h2><span class="btxt">${pl.hand.length} card${pl.hand.length === 1 ? '' : 's'}</span></div>`;
+    h += renderInspector(mode);
+    if (mode && ui.turn.info.options.length) h += `<div class="label" style="margin-bottom:6px">Talents and special plays</div><div class="opts" style="margin-bottom:12px">${ui.turn.info.options.map(o => `<button class="btn" data-act="opt" data-id="${o.id}">${esc(o.label)}</button>`).join('')}</div>`;
+    h += `<div class="hand">${pl.hand.length ? pl.hand.map(c => cardTile(c, { act: 'hcard', sel: ui.selCard === c.uid, off: mode && !g.playableModes(seat, c).length })).join('') : '<div class="empty">Your hand is empty.</div>'}</div>`;
+    if (mode) h += `<div class="row" style="margin-top:16px"><button class="btn primary" data-act="end">Done playing: score bases and draw</button></div>`; }
+  return h; }
+
+function renderInspector(mode) {
+  const g = ui.g; let h = '';
+  if (ui.selCard) { const c = find(ui.selCard); if (c) { const d = c.def, modes = mode ? g.playableModes(ui.seat, c) : [];
+    h = `<div class="insp"><div class="row">${chip(d.faction)}<h3>${esc(d.name)}</h3><span class="mono">${d.type === 'fusion' ? 'minion 2 / action' : d.type === 'minion' ? 'minion ' + d.power : 'action'}</span></div><p>${esc(d.text)}</p>
+      ${mode ? `<div class="opts">${modes.includes('minion') ? '<button class="btn primary" data-act="play" data-m="minion">Play as minion</button>' : ''}${modes.includes('action') ? '<button class="btn primary" data-act="play" data-m="action">Play as action</button>' : ''}</div>${modes.length ? '' : `<div class="why">${why(c)}</div>`}` : ''}</div>`; } }
+  else if (ui.inspect) { const o = find(ui.inspect); if (o) h = inspectBox(o); }
+  else h = `<div class="insp"><div class="why">${mode ? 'Tap a card in your hand to read it and play it. Tap anything on the table to read its text.' : 'Tap a card to read it.'}</div></div>`;
+  return h; }
+function why(c) { const g = ui.g, d = c.def, t = g.turn; const isM = d.type === 'minion' || d.type === 'fusion', isA = d.type === 'action' || d.type === 'fusion';
+  if (d.specialOnly) return 'This is a Special: you can only play it just before a base scores.';
+  if (isM && !isA && t.minionsLeft <= 0) return 'You have already played your minion this turn.';
+  if (isA && !isM && t.actionsLeft <= 0) return 'You have already played your action this turn.';
+  if (isA && g.sleep[ui.seat] && g.sleep[ui.seat].noActions) return 'Mark of Sleep: you cannot play actions until the caster’s next turn.';
+  return 'No legal play for this card right now.'; }
+function inspectBox(o) {
+  const g = ui.g;
+  if (o.minions) return `<div class="insp"><h3>${esc(o.def.name)}</h3><p>${esc(o.def.text)}</p></div>`;
+  const d = o.def; let extra = '';
+  if (o.base !== undefined && o.controller !== undefined) extra = `<div class="why">Controlled by ${pname(o.controller)} · power now ${g.powerOf(o)} (printed ${d.power})${o.counters ? ` · ${o.counters} counter(s)` : ''}</div>`;
+  else if (o.controller !== undefined) extra = `<div class="why">Played by ${pname(o.controller)}</div>`;
+  return `<div class="insp"><div class="row">${chip(d.faction)}<h3>${esc(d.name)}</h3></div><p>${esc(d.text)}</p>${extra}</div>`; }
+
+function renderSheet() {
+  const pr = ui.prompt; if (!pr || ui.cover) return ''; const s = pr.spec, g = ui.g;
+  let body = '';
+  const who = `<small>${pname(pr.p)}</small>`;
+  if (s.kind === 'minion') body = `<div class="q">${who}${esc(s.prompt)} <span class="btxt">Tap a highlighted minion.</span></div><div class="opts">${s.optional ? '<button class="btn" data-act="skip">Skip</button>' : ''}${s.cancel ? '<button class="btn" data-act="skip">Cancel</button>' : ''}</div>`;
+  else if (s.kind === 'base') body = `<div class="q">${who}${esc(s.prompt)} <span class="btxt">Tap a highlighted base.</span></div><div class="opts">${s.optional ? '<button class="btn" data-act="skip">Skip</button>' : ''}${s.cancel ? '<button class="btn" data-act="skip">Cancel</button>' : ''}</div>`;
+  else if (s.kind === 'yesno') body = `<div class="q">${who}${esc(s.prompt)}</div>${s.reveal ? `<div class="cards">${s.reveal.map(c => cardTile(c, { reveal: true })).join('')}</div>` : ''}<div class="opts"><button class="btn primary" data-act="yes">Yes</button><button class="btn" data-act="no">No</button></div>`;
+  else if (s.kind === 'options') body = `<div class="q">${who}${esc(s.prompt)}</div>${s.reveal ? `<div class="cards">${s.reveal.map(c => cardTile(c, { reveal: true })).join('')}</div>` : ''}<div class="opts">${s.options.map(o => `<button class="btn ${o.id === '__pass' ? 'ghost' : ''}" data-act="option" data-id="${esc(o.id)}">${esc(o.label)}</button>`).join('')}${s.optional ? '<button class="btn ghost" data-act="skip">Skip</button>' : ''}</div>`;
+  else if (s.kind === 'cards') {
+    const ids = new Set(s.cands.map(c => c.uid)); const rest = (s.reveal || []).filter(c => !ids.has(c.uid));
+    body = `<div class="q">${who}${esc(s.prompt)}</div>${rest.length ? `<div class="label">Also revealed</div><div class="cards">${rest.map(c => cardTile(c, { reveal: true })).join('')}</div><div class="label">Choose from</div>` : ''}
+      <div class="cards">${s.cands.map(c => cardTile(c, { act: 'pickcard', chosen: pr.sel.has(c.uid) })).join('')}</div>
+      <div class="opts">${s.multi ? `<button class="btn primary" data-act="confirm">Confirm (${pr.sel.size})</button>` : ''}${s.optional ? '<button class="btn" data-act="skip">Skip</button>' : ''}${s.cancel ? '<button class="btn" data-act="skip">Cancel</button>' : ''}</div>`; }
+  return `<div class="sheet" role="dialog" aria-live="polite"><div class="in">${body}</div></div>`; }
+
+function renderLayer() {
+  let h = '';
+  if (ui.screen === 'game') { const g = ui.g;
+    if (ui.cover != null) h += `<div class="overlay"><div class="panel"><div class="label">Pass the device</div><h2>${pname(ui.cover)}, you’re up</h2><p class="btxt" style="margin:0">Everyone else look away. Your hand is shown once you tap the button.</p><button class="btn primary" data-act="seat" data-p="${ui.cover}">I’m ${pname(ui.cover)}</button></div></div>`;
+    else if (g.over) h += `<div class="overlay"><div class="panel"><div class="label">Final scores</div><h2>${pname(g.winner)} wins</h2><ul class="dlist">${g.players.slice().sort((a, b) => b.vp - a.vp).map(p => `<li><span>${esc(p.name)}</span><b class="mono">${p.vp} VP</b></li>`).join('')}</ul><div class="row"><button class="btn primary" data-act="quit">Play again</button></div></div></div>`;
+    else if (ui.modal === 'discards') { const k = ui.dtab != null ? ui.dtab : 0; const pl = g.players[k];
+      const groups = {}; pl.discard.forEach(c => { groups[c.def.name] = (groups[c.def.name] || 0) + 1; });
+      h += `<div class="overlay" data-act="closemodal"><div class="panel wide" data-stop="1"><h2>Discard piles</h2><div class="tabs">${g.players.map(p => `<button data-act="dtab" data-i="${p.idx}" aria-pressed="${p.idx === k}">${esc(p.name)} (${p.discard.length})</button>`).join('')}</div>
+        <ul class="dlist">${Object.keys(groups).length ? Object.keys(groups).sort().map(n => `<li><span>${esc(n)}</span><b class="mono">×${groups[n]}</b></li>`).join('') : '<li class="empty">Empty.</li>'}</ul><button class="btn" data-act="closemodal">Close</button></div></div>`; }
+    h += renderSheet(); }
+  return h; }
+
+function render() {
+  const keep = { x: window.scrollX, y: window.scrollY };
+  if (ui.screen === 'setup') { $app.className = 'wrap'; $app.innerHTML = renderSetup(); $layer.innerHTML = ''; }
+  else { $app.className = 'wrap' + (ui.prompt && !ui.cover ? ' has-sheet' : ''); $app.innerHTML = renderGame(); $layer.innerHTML = renderLayer(); }
+  window.scrollTo(keep.x, keep.y); }
+
+/* ---------- events ---------- */
+document.addEventListener('input', e => { const i = e.target.getAttribute && e.target.getAttribute('data-pn'); if (i != null) { ui.setup.players[+i].name = e.target.value; saveSetup(); const b = document.querySelector('[data-act=start]'); if (b) b.disabled = !ui.setup.players.slice(0, ui.setup.n).every(p => p.f.length === 2 && p.name.trim()); } });
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-stop]') && !e.target.closest('[data-act]')) return;
+  const el = e.target.closest('[data-act]'); if (!el) return; const a = el.dataset.act; const g = ui.g;
+  if (a === 'noop') return;
+  if (a === 'n') { ui.setup.n = +el.dataset.n; for (let i = ui.setup.n; i < 4; i++) ui.setup.players[i].f = ui.setup.players[i].f; saveSetup(); render(); return; }
+  if (a === 'pf') { const p = ui.setup.players[+el.dataset.i], f = el.dataset.f; const k = p.f.indexOf(f); if (k >= 0) p.f.splice(k, 1); else if (p.f.length < 2) p.f.push(f); saveSetup(); render(); return; }
+  if (a === 'rand') { const f = fkeys.slice().sort(() => Math.random() - .5); ui.setup.players.forEach((p, i) => { p.f = i < ui.setup.n ? [f[i * 2], f[i * 2 + 1]] : []; }); saveSetup(); render(); return; }
+  if (a === 'start') { startGame(); return; }
+  if (a === 'quit') { ui.screen = 'setup'; ui.g = null; ui.prompt = null; ui.turn = null; ui.cover = null; ui.seat = null; ui.modal = null; render(); return; }
+  if (a === 'seat') { ui.seat = +el.dataset.p; ui.cover = null; render(); return; }
+  if (a === 'discards') { ui.modal = 'discards'; ui.dtab = 0; render(); return; }
+  if (a === 'dtab') { ui.dtab = +el.dataset.i; render(); return; }
+  if (a === 'closemodal') { ui.modal = null; render(); return; }
+  if (a === 'log') { ui.showLog = !ui.showLog; render(); return; }
+  if (a === 'hcard') { const uid = +el.dataset.uid; ui.selCard = ui.selCard === uid ? null : uid; ui.inspect = null; render(); return; }
+  if (a === 'inspect' || a === 'inspectbase') { if (ui.prompt) return; ui.inspect = +el.dataset.uid; ui.selCard = null; render(); return; }
+  if (a === 'end' && ui.turn) { act({ type: 'end' }); return; }
+  if (a === 'opt' && ui.turn) { act({ type: 'opt', id: el.dataset.id }); return; }
+  if (a === 'play' && ui.turn && ui.selCard) { const c = find(ui.selCard); if (c) { const m = el.dataset.m; g.__forceMode = m; act({ type: 'play', card: c, mode: m }); } return; }
+  if (!ui.prompt) return;
+  const pr = ui.prompt;
+  if (a === 'pickminion' || a === 'pickbase') { answer(find(+el.dataset.uid)); return; }
+  if (a === 'pickcard') { const c = find(+el.dataset.uid); if (pr.spec.multi) { if (pr.sel.has(c.uid)) pr.sel.delete(c.uid); else pr.sel.add(c.uid); render(); } else answer(c); return; }
+  if (a === 'confirm') { answer(pr.spec.cands.filter(c => pr.sel.has(c.uid))); return; }
+  if (a === 'skip') { answer(pr.spec.multi ? [] : null); return; }
+  if (a === 'yes') { answer(true); return; }
+  if (a === 'no') { answer(false); return; }
+  if (a === 'option') { answer(el.dataset.id); return; }
+});
+
+/* ---------- game start ---------- */
+function startGame() {
+  const s = ui.setup; const players = s.players.slice(0, s.n).map(p => ({ name: p.name.trim() || 'Player', factions: p.f.slice() }));
+  ui.g = SU.createGame({ players, host }); ui.screen = 'game'; ui.seat = null; ui.cover = null; ui.prompt = null; ui.turn = null; ui.modal = null;
+  // let the engine honour the chosen play mode for fusion cards
+  const g = ui.g; const orig = g.pickOption;
+  g.pickOption = async function (p, options, prompt, o) { if (g.__forceMode && options.length === 2 && options[0].id === 'minion' && options[1].id === 'action') { const m = g.__forceMode; g.__forceMode = null; return m; } return orig(p, options, prompt, o); };
+  const origPlay = g.playCardFromHand; g.playCardFromHand = async (p, c) => { try { return await origPlay(p, c); } finally { g.__forceMode = null; } };
+  g.run().then(() => { render(); }).catch(err => { console.error(err); $app.insertAdjacentHTML('afterbegin', `<div class="insp"><b>Something went wrong:</b> ${esc(err && err.message || err)}. Start a new game to continue.</div>`); });
+  render(); }
+render();
+})();
+</script>
