@@ -259,6 +259,7 @@ details.rules li { margin: 4px 0; }
   .tray .th{flex-direction:row;justify-content:space-between;align-items:baseline;padding:0 2px 2px}
   .tray-c{flex:0 0 auto;width:100%}
 }
+.ver{text-align:center;padding:10px 16px calc(14px + env(safe-area-inset-bottom,0px));font:600 11px var(--mono);letter-spacing:.06em;color:var(--muted)}
 #toast{position:fixed;z-index:80;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translate(-50%,30px);opacity:0;pointer-events:none;max-width:min(92vw,420px);padding:10px 16px;border-radius:12px;background:var(--ink);color:var(--bg);font:600 14px/1.35 var(--body);box-shadow:0 8px 28px rgba(0,0,0,.28);transition:.2s}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 .cbadge[hidden]{display:none!important}
@@ -277,6 +278,7 @@ details.rules li { margin: 4px 0; }
 </style>
 
 <div class="wrap" id="app"></div>
+<div class="ver" aria-label="Page version">Version Oct 17 20:22 UTC</div>
 <div id="layer"></div>
 <div id="chatdock"></div><div id="toast" role="status" aria-live="polite"></div>
 
@@ -1246,7 +1248,11 @@ function createGame(opts) {
     if (g.uses.madness) mk('madness', g.madnessDeck);
     if (g.uses.monsters) { mk('monster', g.monsterDeck); g.shuffle(g.monsterDeck); }
     if (g.uses.treasure) { mk('treasure', g.treasureDeck); g.shuffle(g.treasureDeck); }
-    const baseIds = Object.keys(BASES).filter(id => BASES[id] && (!BASES[id].faction || inPlay.has(BASES[id].faction))); g.baseDeck = g.shuffle(baseIds.map(id => BASES[id]));
+    /* every base in the game is in the pool, whoever's factions are playing; only those that need a deck/component nobody brought (monsters, Madness, treasure, titans) are left out */
+    const hasTitan = g.players.some(pl => pl.titans.length);
+    const needsMissing = d => { const t = d.text || ''; return !!((d.monsters || /monster/i.test(t)) && !g.uses.monsters || /madness/i.test(t) && !g.uses.madness || /treasure/i.test(t) && !g.uses.treasure || /\btitans?\b/i.test(t) && !hasTitan); };
+    const baseIds = Object.keys(BASES).filter(id => BASES[id] && (opts.ownBasesOnly ? (!BASES[id].faction || inPlay.has(BASES[id].faction)) : !needsMissing(BASES[id])));   // ownBasesOnly: legacy pool (only the scripted tests use it, so their seeds stay stable)
+    g.baseDeck = g.shuffle(baseIds.map(id => BASES[id]));
     for (let i = 0; i < N + 1; i++) { const nb = newBase(drawBaseDef()); if (nb) g.bases.push(nb); }
     for (const pl of g.players) g.draw(pl.idx, 5);
     g.q.length = 0;
@@ -10564,7 +10570,7 @@ async function ensureArt(ids) {
         if (bid) IMGU.bases[bid] = url; else IMGU.cards[cid] = url; }
       artState[id] = 2; } catch (e) { artState[id] = 0; } }));
   render(); }
-const artFor = V => { if (!V) return; ensureArt([...V.players.flatMap(p => p.f || []), ...SPECIAL_DECKS]); };
+const artFor = V => { if (!V) return; ensureArt([...V.players.flatMap(p => p.f || []), ...SPECIAL_DECKS, ...(V.bases || []).map(b => BASES[b.d] && BASES[b.d].faction).filter(Boolean)]); };
 
 /* ---------- state ---------- */
 const S = { chat: { msgs: [], open: false, seen: 0 }, log: [], undoReq: null, replaying: false, cfg: null, screen: 'home', mode: null, g: null, V: null, pend: null, seqN: 0, seats: null, seat: null, cover: null,
@@ -10622,7 +10628,7 @@ function buildView() {
   return V; }
 let lastW = '', writing = false, queued = false;
 function pushView() {
-  if (!S.g || S.replaying) return; S.V = buildView();
+  if (!S.g || S.replaying) return; S.V = buildView(); artFor(S.V);
   if (S.mode === 'local') { const p = S.pend ? S.pend.p : null; if (p != null && !botLvl(p) && S.seat !== p) S.cover = p; }
   else if (S.mode === 'host') { queued = true; if (!writing) flush(); }
   render(); }
