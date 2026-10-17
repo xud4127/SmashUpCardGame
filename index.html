@@ -104,6 +104,10 @@ details.rules li { margin: 4px 0; }
 .mn.pick { outline: 3px solid var(--hl); outline-offset: 2px; }
 .mn.dim { opacity: .5; }
 .mn.sel { box-shadow: 0 0 0 3px var(--accent); }
+.bacts{display:flex;flex-wrap:wrap;gap:8px}
+.bact{display:grid;gap:0;width:104px;padding:0;border:2px solid var(--f,var(--line));border-radius:8px;background:var(--surface-2);overflow:hidden;cursor:zoom-in;text-align:left}
+.bact img{display:block;width:100%;height:auto}
+.bact small{padding:2px 6px;font:700 11px var(--body);color:var(--muted);border-top:1.5px solid var(--f,var(--line))}
 .acts { display: flex; flex-wrap: wrap; gap: 5px; }
 .act { font-size: 12px; font-weight: 600; border: 1.5px solid var(--f, var(--line)); border-radius: 6px; padding: 1px 7px; background: var(--surface); }
 .empty { color: var(--muted); font-size: 13px; }
@@ -160,7 +164,10 @@ details.rules li { margin: 4px 0; }
 .bimg{width:100%;height:auto;border-radius:8px;display:block;cursor:zoom-in;border:1px solid var(--line)}
 .insp.wi{grid-template-columns:auto 1fr;align-items:start;gap:14px}.insp.wi .itxt{display:grid;gap:7px;min-width:0}
 .inspimg{display:block;cursor:zoom-in;border-radius:8px;border:1px solid var(--line)}.inspimg.card{width:132px;height:auto}.inspimg.base{width:200px;height:auto}
-.zoomimg{max-width:min(92vw,460px);max-height:88vh;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.5);cursor:zoom-out}
+.ztext{display:grid;gap:10px;max-width:min(92vw,380px);padding:20px;border-radius:14px;background:var(--surface);color:var(--ink);font:500 17px/1.4 var(--body);cursor:zoom-out}.ztext b{font:700 22px var(--body)}
+.zclose{margin-top:14px}
+.overlay:has(.zoomimg,.ztext){grid-auto-flow:row;align-content:center;justify-items:center}
+.zoomimg{max-width:min(92vw,460px);max-height:78vh;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.5);cursor:zoom-out}
 @media (max-width:480px){.insp.wi{grid-template-columns:1fr}.inspimg.card{width:140px}.inspimg.base{width:100%}}
 .mn.im{position:relative;padding:0;width:74px;border:2px solid var(--f);border-radius:7px;background:var(--surface-2);overflow:visible;flex-direction:row}
 .mn.im img{width:100%;aspect-ratio:300/420;object-fit:cover;display:block;border-radius:5px}
@@ -179,7 +186,7 @@ details.rules li { margin: 4px 0; }
 .card{position:relative}.zm{position:absolute;top:5px;right:5px;width:26px;height:26px;display:grid;place-items:center;border-radius:99px;background:rgba(18,26,43,.78);color:#fff;font-size:15px;cursor:zoom-in;z-index:2;border:1.5px solid rgba(255,255,255,.6)}
 .otiles{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}.ot{position:relative}
 .ot-pick{width:100%;display:grid;gap:6px;padding:0 0 8px;overflow:hidden;text-align:left;font-size:12.5px}.ot-pick img{width:100%;height:auto;display:block}.ot-pick span{padding:0 8px}
-.panel.wide{max-width:920px}.dgrid{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(92px,1fr))}
+.panel.wide{max-width:920px}.dgrid{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(128px,1fr))}
 .dc{display:grid;gap:3px;padding:0;background:var(--surface-2);border:1.5px solid var(--f,var(--line));border-radius:7px;overflow:hidden;text-align:left;cursor:zoom-in}
 .dc img{width:100%;height:auto;display:block}.dc small{padding:0 5px 5px;font-size:11px;line-height:1.2;color:var(--muted)}
 
@@ -209,10 +216,69 @@ details.rules li { margin: 4px 0; }
 .dteam{padding:8px 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface-2);display:grid;gap:6px;min-width:0}
 .dteam.cur{border-color:var(--accent)}
 .frow.taken{opacity:.4}
+
+.pl.hasti{grid-template-columns:1fr auto auto}.pl.hasti .cnt{grid-column:1 / 3}
+.pl .tcards{grid-column:3;grid-row:1 / span 3;display:flex;gap:6px;align-self:start}
+.tcard{position:relative;width:76px;padding:0;border:2px solid #d4a72c;border-radius:7px;background:var(--surface-2);cursor:zoom-in;overflow:hidden;box-shadow:0 0 0 2px #d4a72c33;transition:transform .12s}
+.tcard:hover{transform:translateY(-2px)}.tcard img{display:block;width:100%;height:auto}
+.tcard .stb{position:absolute;left:0;right:0;bottom:0;padding:2px 0;font:700 9.5px var(--body);letter-spacing:.07em;text-transform:uppercase;text-align:center;background:#d4a72c;color:#1d1500}
+.tcard.out img{opacity:.42;filter:grayscale(.55)}
+@media (max-width:420px){.tcard{width:62px}}
+
+.mnw{display:inline-flex;flex-direction:column;align-items:stretch;min-width:0;max-width:100%}
+.mnw:not(.txt){width:74px}
+.mnw>.mn{position:relative;z-index:10}
+.mnw .atch{display:flex;flex-direction:column;padding:0 0 0 7px}
+.mnw .atch.im{padding:0}
+.at{position:relative;display:block;width:100%;padding:0;border:2px solid var(--f);border-top-width:1.5px;border-radius:0 0 7px 7px;background:var(--surface-2);overflow:hidden;cursor:pointer;margin-top:-10px;height:46px;text-align:left}
+.at:first-child{margin-top:-5px}
+.at img{display:block;width:100%;max-width:100%;height:auto;margin-top:-3px}
+.at::after{content:"attached";position:absolute;right:0;bottom:0;font:700 8.5px var(--body);letter-spacing:.06em;text-transform:uppercase;padding:1px 4px;border-radius:5px 0 0 0;background:var(--f);color:#fff;opacity:.92}
+.at .atn{display:block;padding:12px 8px 0;font:600 12px var(--body);color:var(--ink)}
+.mnw.txt .at{height:38px;border-left-width:6px}
+.at:hover{filter:brightness(1.06)}
+
+.gl{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-items:start}
+.gm{min-width:0}
+.tray{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 8px;align-items:flex-start}
+.tray.none{display:none}
+.tray .th{flex:0 0 auto;display:flex;flex-direction:column;gap:2px;font:600 12px var(--body);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:4px 6px 0 0}
+.tray .th b{color:var(--ink)}
+.tray .empty{font-size:13px;color:var(--muted);padding:4px}
+.tray-c{position:relative;flex:0 0 112px;width:112px;padding:0;border:2px solid var(--f);border-radius:9px;background:var(--surface-2);overflow:hidden;cursor:zoom-in;text-align:left;box-shadow:var(--shadow)}
+.tray-c img{display:block;width:100%;height:auto}
+.tray-c .cap{display:flex;flex-direction:column;gap:0;padding:3px 6px 4px;background:var(--surface);border-top:1.5px solid var(--f);font:600 11px var(--body);color:var(--ink);overflow-wrap:anywhere}
+.tray-c .cap .tt{font-weight:500;color:var(--muted)}
+.tray-c.txt{cursor:default;padding:6px 8px 0}.tray-c.txt b{display:block;font:700 13px var(--body)}.tray-c.txt small{display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;font-size:11px;color:var(--muted);margin:3px 0 6px}
+.tray-c.txt .cap{margin:0 -8px}
+@media (min-width:1120px){
+  .wrap:has(.gl){max-width:1420px}
+  .gl{grid-template-columns:196px minmax(0,1fr)}
+  .tray{position:sticky;top:12px;flex-direction:column;overflow:visible;align-items:stretch;padding:0;max-height:calc(100vh - 24px);overflow-y:auto}
+  .tray.none{display:flex}
+  .tray .th{flex-direction:row;justify-content:space-between;align-items:baseline;padding:0 2px 2px}
+  .tray-c{flex:0 0 auto;width:100%}
+}
+#toast{position:fixed;z-index:80;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translate(-50%,30px);opacity:0;pointer-events:none;max-width:min(92vw,420px);padding:10px 16px;border-radius:12px;background:var(--ink);color:var(--bg);font:600 14px/1.35 var(--body);box-shadow:0 8px 28px rgba(0,0,0,.28);transition:.2s}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+.cbadge[hidden]{display:none!important}
+.cbadge{display:inline-grid;place-items:center;min-width:18px;height:18px;margin-left:6px;padding:0 5px;border-radius:99px;background:var(--accent);color:var(--accent-ink);font:700 11px var(--mono)}
+#chatdock .chat{position:fixed;z-index:60;top:0;right:0;bottom:0;width:min(360px,100vw);display:flex;flex-direction:column;background:var(--surface);border-left:1.5px solid var(--line);box-shadow:-8px 0 30px rgba(0,0,0,.18);transform:translateX(105%);transition:transform .18s;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+#chatdock .chat.open{transform:none}
+#chatdock .ch{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;border-bottom:1.5px solid var(--line)}
+#chatdock .msgs{flex:1 1 auto;min-height:0;overflow-y:auto;list-style:none;margin:0;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+#chatdock .msgs li{display:flex;flex-direction:column;gap:1px;max-width:88%;align-self:flex-start;padding:6px 10px;border-radius:12px;background:var(--surface-2);border:1.5px solid var(--line);overflow-wrap:anywhere}
+#chatdock .msgs li.me{align-self:flex-end;background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+#chatdock .msgs .who{font:700 11px var(--body);opacity:.75;letter-spacing:.03em}
+#chatdock .msgs .tx{font:500 14.5px/1.35 var(--body)}
+#chatdock .msgs li.none{align-self:center;background:none;border:none;color:var(--muted)}
+#chatdock .cin{display:flex;gap:8px;padding:10px 12px;border-top:1.5px solid var(--line)}
+#chatdock .cin input{flex:1;min-width:0;font:500 16px var(--body);padding:9px 11px;border-radius:9px;border:1.5px solid var(--line);background:var(--surface-2);color:var(--ink)}
 </style>
 
 <div class="wrap" id="app"></div>
 <div id="layer"></div>
+<div id="chatdock"></div><div id="toast" role="status" aria-live="polite"></div>
 
 
 <script src="config.js"></script>
@@ -618,7 +684,7 @@ function createGame(opts) {
   const srcOff = s => s.k === 'base' ? !g.baseActive(s.o) : g.abilitiesOff(s.o);
   /* g.emit(name, ev): run def.on[name] of every card in play (and def.onHand/onDiscard of cards in those zones) */
   g.emit = async (name, ev) => {
-    for (const s of g.sources()) { const h = s.def.on && s.def.on[name]; if (!h) continue; if (!live(s)) continue; if (srcOff(s) && !h.always) continue; await h(g, s.o, ev); }
+    for (const s of g.sources()) { const h = s.def.on && s.def.on[name]; if (!h) continue; if (!live(s)) continue; if (srcOff(s) && !h.always) continue; if (s.k === 'base' && (name === 'afterScore' || name === 'beforeScore') && ev && ev.b && ev.b !== s.o && !h.any) continue; /* a base's own "when this base scores" text never fires for some other base */ await h(g, s.o, ev); }
     for (const p of g.order(g.current)) { const pl = g.players[p];
       for (const c of [...pl.hand]) { const h = c.def.onHand && c.def.onHand[name]; if (h && pl.hand.includes(c)) await h(g, c, ev, p); }
       for (const c of [...pl.discard]) { const h = c.def.onDiscard && c.def.onDiscard[name]; if (h && pl.discard.includes(c)) await h(g, c, ev, p); }
@@ -886,6 +952,7 @@ function createGame(opts) {
     if (d.target === 'minion' && !target) target = await g.pickMinion(p, d.cands ? d.cands(g, p) : g.allMinions(), `Play ${d.name} on which minion?`, { src: ac(p) });
     if ((d.target === 'base' || d.target === 'minion') && !target) { g.players[p].hand.push(card); return false; }
     g.log(`${g.players[p].name} plays ${d.name}${target ? ' on ' + (target.def.name) : ''}.`);
+    (g.turn.played = g.turn.played || []).push({ uid: card.uid, d: d.id, p, tg: target ? target.def.name : null });
     card.controller = p; card.flags = {}; g.countPlay(p);
     if (d.target === 'base') { card.onBase = target; target.actions.push(card); card.stored = card.stored || []; if (d.onAttach) await d.onAttach(g, p, card, target); }
     else if (d.target === 'minion') { card.onMinion = target; target.attached.push(card); card.stored = card.stored || []; if (d.onAttach) await d.onAttach(g, p, card, target); }
@@ -10257,7 +10324,10 @@ SmashUp.faction("wraithrustlers", { name: "Wraithrustlers", set: "Excellent Movi
    Answers are in the same wire format a human click produces (uids, option ids, booleans). */
 (function (root) {
 'use strict';
-const LEVELS = { easy: { opp: 0, noise: 1.6, rand: 0.4, end: 0.12 }, normal: { opp: 0.15, noise: 0.9, rand: 0.1, end: 0.05 }, hard: { opp: 0.7, noise: 0, rand: 0, end: 0 } };
+const DEF = { w0: 0.15, wp: 2, pv: 0.12, pvo: 0.1, tb: 0.5, tm: 0.3, ab: 0.8, ax: 2.5, ad: 0.6, oa: 1.4, vm: 3, win: 0, cv: 0, mc: 0, mcM: 6, mcK: 4, bt: 1, ht: 0.15 };
+const LEVELS = { easy: { opp: 0, noise: 1.6, rand: 0.4, end: 0.12 }, normal: { opp: 0.15, noise: 0.9, rand: 0.1, end: 0.05 }, hard: { opp: 0.7, noise: 0, rand: 0, end: 0 }, expert: { opp: 0.7, noise: 0, rand: 0, end: 0, x: 1, w0: 0.02, wp: 2.5, tb: 0, win: 6, cv: 0.2, mc: 1 } };
+for (const k in LEVELS) LEVELS[k] = Object.assign({}, DEF, LEVELS[k]);
+if (typeof process !== 'undefined' && process.env && process.env.EXP) Object.assign(LEVELS.expert, JSON.parse(process.env.EXP));
 const rnd = a => a[Math.floor(Math.random() * a.length)];
 const nz = s => (Math.random() - 0.5) * 2 * s;
 
@@ -10280,18 +10350,20 @@ function hook(g) {
   g.pickOption = async function (p, options, prompt, o) { if (g.__forceMode && options.length === 2 && options[0].id === 'minion' && options[1].id === 'action') { const m = g.__forceMode; g.__forceMode = null; return m; } return orig(p, options, prompt, o); };
   const origPlay = g.playCardFromHand; g.playCardFromHand = async (p, c) => { try { return await origPlay(p, c); } finally { g.__forceMode = null; } }; }
 
-function create(g) {
+function create(g, env) {
   const N = () => g.players.length;
   const mem = { turn: null, tried: new Set(), opts: {}, next: null, last: null };
   let P = LEVELS.normal, me = 0;
   const sum = t => { let s = 0; for (const k in t) s += t[k]; return s; };
   const tot = b => { const t = {}; for (let p = 0; p < N(); p++) { const v = g.powerAt(b, p); if (v > 0) t[p] = v; } return t; };
   const vpOf = (t, who, vp) => { const mine = t[who] || 0; if (mine <= 0) return 0; let r = 0; for (const k in t) if (+k !== who && t[k] > mine) r++; return vp[r] || 0; };
-  const wgt = (b, t) => { const bp = g.breakpoint(b), total = sum(t); if (total >= bp) return 1; const f = total / bp; return 0.15 + 0.85 * f * f; };
-  const ev = (b, t) => { let s = vpOf(t, me, b.def.vp); for (let o = 0; o < N(); o++) if (o !== me) s -= P.opp * vpOf(t, o, b.def.vp); return s * wgt(b, t); };
+  const wgt = (b, t) => { const bp = g.breakpoint(b), total = sum(t); if (total >= bp) return 1; const f = total / bp; return P.w0 + (1 - P.w0) * Math.pow(f, P.wp); };
+  const U = x => x + (x >= 15 ? P.win : 0) + P.cv * Math.max(0, x - 9);
+  const gain = (who, v) => P.x && P.win ? U(g.players[who].vp + v) - U(g.players[who].vp) : v;
+  const ev = (b, t) => { let s = gain(me, vpOf(t, me, b.def.vp)); for (let o = 0; o < N(); o++) if (o !== me) s -= P.opp * gain(o, vpOf(t, o, b.def.vp)); return s * wgt(b, t); };
   /* value, for me, of changing `who`'s power at base b by w */
   function chg(b, who, w) { const t = tot(b), t2 = Object.assign({}, t); t2[who] = Math.max(0, (t2[who] || 0) + w);
-    return 3 * (ev(b, t2) - ev(b, t)) + (who === me ? 0.12 * w : -0.1 * w); }
+    return P.vm * (ev(b, t2) - ev(b, t)) + (who === me ? P.pv * w : -P.pvo * w); }
   const pw = m => g.powerOf(m);
   const mine = ms => ms.filter(m => m.controller === me), theirs = ms => ms.filter(m => m.controller !== me);
   const best = (arr, f) => { let b = null, bs = -1e9; for (const x of arr) { const s = f(x) + nz(P.noise); if (s > bs) { bs = s; b = x; } } return b; };
@@ -10299,20 +10371,72 @@ function create(g) {
     if (d.type === 'fusion') v = Math.max(2.5, d.power || 0); if (/extra|draw|destroy/i.test(t)) v += 0.8; return v; };
 
   /* ----- turn choice ----- */
-  function turn(pe) {
-    if (mem.turn !== g.turn) { mem.turn = g.turn; mem.tried = new Set(); mem.opts = {}; mem.next = null; }
+  const wire = c => c.end ? { type: 'end' } : c.o ? { type: 'opt', id: c.o.id } : { type: 'play', uid: c.c.uid, mode: c.m };
+  function turnCands(pe) {
     const p = pe.p, cands = [];
     for (const c of g.players[p].hand) { if (mem.tried.has(c.uid)) continue;
       for (const m of g.playableModes(p, c)) {
-        if (m === 'minion') { let bb = null, bs = -1e9; for (const b of g.legalBases(p, c, {})) { const s = chg(b, p, c.def.power) + nz(P.noise); if (s > bs) { bs = s; bb = b; } }
-          const t = c.def.text || ''; cands.push({ c, m, s: bs + (/destroy|extra|draw|return/i.test(t) ? 0.5 : 0) + 0.3, base: bb }); }
-        else { const t = c.def.text || ''; cands.push({ c, m, s: 0.8 + (/extra (minion|action)/i.test(t) ? 2.5 : 0) + (/draw/i.test(t) ? 0.6 : 0) + nz(P.noise) + (g.turn.minionsLeft > 0 && /extra minion/i.test(t) ? 0 : 0) }); } } }
-    for (const o of pe.info.options) { if ((mem.opts[o.id] || 0) >= 1) continue; cands.push({ o, s: 1.4 + nz(P.noise) + (P === LEVELS.easy ? -1 : 0) }); }
-    if (!cands.length || Math.random() < P.end) return { type: 'end' };
-    let pick; if (Math.random() < P.rand) pick = rnd(cands); else { pick = cands[0]; for (const c of cands) if (c.s > pick.s) pick = c; }
+        if (m === 'minion') { const t = c.def.text || ''; const sc = []; for (const b of g.legalBases(p, c, {})) sc.push({ b, s: chg(b, p, c.def.power) + nz(P.noise) });
+          sc.sort((a, b2) => b2.s - a.s); const keep = P.mc ? sc.slice(0, 2) : sc.slice(0, 1);
+          for (const x of keep) cands.push({ c, m, s: x.s + (/destroy|extra|draw|return/i.test(t) ? P.tb : 0) + P.tm, base: x.b }); }
+        else { const t = c.def.text || ''; cands.push({ c, m, s: P.ab + (/extra (minion|action)/i.test(t) ? P.ax : 0) + (/draw/i.test(t) ? P.ad : 0) + nz(P.noise) }); } } }
+    for (const o of pe.info.options) { if ((mem.opts[o.id] || 0) >= 1) continue; cands.push({ o, s: P.oa + nz(P.noise) + (P === LEVELS.easy ? -1 : 0) }); }
+    return cands; }
+  function commit(pick) {
+    if (pick.end) return { type: 'end' };
     if (pick.o) { mem.opts[pick.o.id] = (mem.opts[pick.o.id] || 0) + 1; return { type: 'opt', id: pick.o.id }; }
     mem.tried.add(pick.c.uid); mem.next = pick.m === 'minion' ? { uid: pick.c.uid, base: pick.base } : null;
     return { type: 'play', uid: pick.c.uid, mode: pick.m }; }
+  function turn(pe) {
+    if (mem.turn !== g.turn) { mem.turn = g.turn; mem.tried = new Set(); mem.opts = {}; mem.next = null; }
+    const cands = turnCands(pe);
+    if (!cands.length || Math.random() < P.end) return { type: 'end' };
+    if (P.mc && env && env.snapshot && env.SU && cands.length) return mcTurn(pe, cands);
+    let pick; if (Math.random() < P.rand) pick = rnd(cands); else { pick = cands[0]; for (const c of cands) if (c.s > pick.s) pick = c; }
+    return commit(pick); }
+
+  /* ----- expert: try the best few plays on copies of the game and keep the one that works out best ----- */
+  const sleep0 = () => new Promise(r => setTimeout(r, 0));
+  function evalNow(who) { const keep = [P, me]; P = LEVELS.expert; me = who;
+    try { if (g.over) { const w = g.winners || (g.winner != null ? [g.winner] : []); return w.includes(who) ? 100 : -100; }
+      let s = U(g.players[who].vp); for (let o = 0; o < N(); o++) if (o !== who) s -= P.opp * U(g.players[o].vp);
+      let bt = 0; for (const b of g.bases) bt += ev(b, tot(b)); s += P.bt * bt + P.ht * g.players[who].hand.length; return s; }
+    finally { P = keep[0]; me = keep[1]; } }
+  function determinize(g2, who, seed) { let x = (seed * 2654435761 + 12345) >>> 0; const R = () => { x = (x * 1664525 + 1013904223) >>> 0; return x / 4294967296; };
+    const shuf = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; } };
+    g2.players.forEach((pl, q) => { if (q === who) shuf(pl.deck); else { const pool = pl.hand.concat(pl.deck); shuf(pool); const n = pl.hand.length; pl.hand.splice(0, pl.hand.length, ...pool.slice(0, n)); pl.deck.splice(0, pl.deck.length, ...pool.slice(n)); } });
+    for (const k of ['baseDeck', 'monsterDeck', 'treasureDeck', 'madnessDeck']) if (g2[k]) shuf(g2[k]); }
+  function rollout(snap, who, cand, k) {
+    return new Promise(resolve => {
+      let i = 0, g2, ai2, t0 = null, steps = 0, fin = false; const never = () => new Promise(() => {});
+      const finish = v => { if (!fin) { fin = true; resolve(v); } };
+      const host = { onLog() {}, onChange() {},
+        ask(gg, p, spec) { if (fin) return never(); const pe2 = { kind: 'prompt', p, spec };
+          if (i < snap.log.length) { const e = snap.log[i++], n = toNative(g2, pe2, e.v); if (!n.ok || e.p !== p || e.k !== 'prompt') { finish(null); return never(); } return Promise.resolve(n.r); }
+          if (t0 === null || ++steps > 500) { finish(null); return never(); }
+          const n = toNative(g2, pe2, ai2.act(pe2, 'hard')); return Promise.resolve(n.ok ? n.r : null); },
+        chooseTurnAction(gg, p, info) { if (fin) return never(); const pe2 = { kind: 'turn', p, info };
+          if (i < snap.log.length) { const e = snap.log[i++], n = toNative(g2, pe2, e.v); if (!n.ok || e.p !== p || e.k !== 'turn') { finish(null); return never(); } return Promise.resolve(n.r); }
+          if (t0 === null) { if (p !== who) { finish(null); return never(); } determinize(g2, who, k + 1); t0 = g2.turn;
+            if (cand.baseIdx != null && cand.c) ai2.hint(cand.c.uid, g2.bases[cand.baseIdx]);
+            const n = toNative(g2, pe2, wire(cand)); if (!n.ok) { finish(null); return never(); } return Promise.resolve(n.r); }
+          if (g2.turn !== t0) { try { finish(ai2.evalNow(who)); } catch (e) { finish(null); } return never(); }
+          if (++steps > 500) { finish(null); return never(); }
+          const n = toNative(g2, pe2, ai2.act(pe2, 'hard')); return Promise.resolve(n.ok ? n.r : { type: 'end' }); } };
+      try { g2 = env.SU.createGame({ players: snap.cfg.players, host, seed: snap.cfg.seed, first: snap.cfg.first }); hook(g2); ai2 = create(g2, null);
+        g2.run().then(() => { try { finish(g2.over ? ai2.evalNow(who) : null); } catch (e) { finish(null); } }).catch(() => finish(null)); }
+      catch (e) { finish(null); } }); }
+  async function mcTurn(pe, cands) {
+    const snap = env.snapshot(), who = pe.p;
+    const sorted = cands.slice().sort((a, b) => b.s - a.s).slice(0, P.mcM);
+    const list = sorted.map(c => Object.assign({}, c, { baseIdx: c.base ? g.bases.indexOf(c.base) : null })); list.push({ end: true, s: -99 });
+    if (list.length === 2 && !list[0].base) { /* only one real choice besides ending: still compare */ }
+    const sum = list.map(() => 0), cnt = list.map(() => 0);
+    for (let k = 0; k < P.mcK; k++) for (let j = 0; j < list.length; j++) { const v = await rollout(snap, who, list[j], k); if (typeof process !== 'undefined' && process.env && process.env.MCDBG) { globalThis.__mc = globalThis.__mc || { ok: 0, nul: 0 }; globalThis.__mc[v == null ? 'nul' : 'ok']++; } if (v != null) { sum[j] += v; cnt[j]++; } if (typeof window !== 'undefined') await sleep0(); }
+    let bi = -1, bv = -1e9; for (let j = 0; j < list.length; j++) if (cnt[j]) { const m = sum[j] / cnt[j] + 0.001 * list[j].s; if (m > bv) { bv = m; bi = j; } }
+    if (bi < 0) { const g0 = cands.slice().sort((a, b) => b.s - a.s)[0]; return commit(g0); }
+    const pick = list[bi]; if (pick.end) return { type: 'end' };
+    return commit(Object.assign({}, pick, { base: pick.base })); }
 
   /* ----- prompts ----- */
   const OWN = /your minion|your hand|sacrifice|choose your minion|use which minion|counter|\+4|give \+/i;
@@ -10358,7 +10482,7 @@ function create(g) {
     if (sp.multi) { if (sp.preselect) return c.map(x => x.uid);
       if (/Destroy any actions/i.test(q)) return c.filter(a => a.controller !== me).map(a => a.uid);
       if (/Shuffle which/i.test(q)) return c.map(x => x.uid);
-      return Math.random() < 0.5 && P !== LEVELS.hard ? [] : c.map(x => x.uid); }
+      return Math.random() < 0.5 && (P !== LEVELS.hard && P !== LEVELS.expert) ? [] : c.map(x => x.uid); }
     let pick;
     if (/discard/i.test(q) && !/Probe/.test(q)) pick = best(c, x => -cardVal(x));
     else if (/Probe/.test(q)) pick = best(c, x => (x.def.power || 0));
@@ -10385,7 +10509,7 @@ function create(g) {
     if (o.some(x => x.id === 'play')) return o.find(x => x.id === 'play').id;
     if (P === LEVELS.easy) return rnd(o).id; return o[0].id; }
 
-  return { act(pe, level) {
+  return { hint(uid, base) { mem.turn = g.turn; mem.next = { uid, base }; }, evalNow, act(pe, level) {
     P = LEVELS[level] || LEVELS.normal; me = pe.p;
     if (pe.kind === 'turn') return turn(pe);
     const sp = pe.spec; let v;
@@ -10440,7 +10564,7 @@ async function ensureArt(ids) {
 const artFor = V => { if (!V) return; ensureArt([...V.players.flatMap(p => p.f || []), ...SPECIAL_DECKS]); };
 
 /* ---------- state ---------- */
-const S = { log: [], undoReq: null, replaying: false, cfg: null, screen: 'home', mode: null, g: null, V: null, pend: null, seqN: 0, seats: null, seat: null, cover: null,
+const S = { chat: { msgs: [], open: false, seen: 0 }, log: [], undoReq: null, replaying: false, cfg: null, screen: 'home', mode: null, g: null, V: null, pend: null, seqN: 0, seats: null, seat: null, cover: null,
   selCard: null, inspect: null, bots: [], ai: null, modal: null, dtab: 0, showLog: false, sel: new Set(), selSeq: -1, err: '', busy: false,
   myName: '', joinCode: '', room: null,
   setup: { n: 2, players: [ { name: 'Player 1', f: ['pirates', 'zombies'], ai: null }, { name: 'Player 2', f: ['dinosaurs', 'wizards'], ai: null }, { name: 'Player 3', f: [], ai: null }, { name: 'Player 4', f: [], ai: null } ] } };
@@ -10471,15 +10595,18 @@ const host = {
 };
 const botLvl = p => (S.bots && S.bots[p]) || null;
 function aiMaybe(pe) { const lvl = botLvl(pe.p); if (!lvl) return;
-  setTimeout(function tick() { if (S.pend !== pe || !S.g) return; if (S.undoReq) { setTimeout(tick, 500); return; } let v;
-    try { v = S.ai.act(pe, lvl); } catch (e) { console.error(e); v = pe.kind === 'turn' ? { type: 'end' } : null; }
+  setTimeout(async function tick() { if (S.pend !== pe || !S.g) return; if (S.undoReq) { setTimeout(tick, 500); return; } let v;
+    if (lvl === 'expert' && pe.kind === 'turn') { S.thinking = pe.p; render(); }
+    try { v = await S.ai.act(pe, lvl); } catch (e) { console.error(e); v = pe.kind === 'turn' ? { type: 'end' } : null; }
+    if (S.thinking != null) { S.thinking = null; }
+    if (S.pend !== pe || !S.g) return; if (S.undoReq) { setTimeout(tick, 500); return; }
     applyAnswer({ seq: pe.seq, v }, undefined); }, pe.kind === 'turn' ? 950 : 650); }
 const cr = c => ({ uid: c.uid, d: c.def ? c.def.id : c.id });
 function buildView() {
   const g = S.g, pe = S.pend;
   const V = { seq: pe ? pe.seq : 0, cur: g.current, tm: [g.turn.minionsLeft, g.turn.actionsLeft], over: !!g.over, win: g.winner, log: g.logs.slice(-60), seats: S.seats, prompt: null, turn: null, cu: !g.over && S.log.some(e => e.h), undo: S.undoReq ? { by: S.undoReq.by, yes: S.undoReq.yes, need: S.undoReq.need, label: S.undoReq.label } : null,
     players: g.players.map(pl => ({ name: pl.name, f: pl.factions, vp: pl.vp, deck: pl.deck.length, hand: pl.hand.map(cr), disc: pl.discard.map(c => c.def.id), na: !!(g.sleep[pl.idx] && g.sleep[pl.idx].noActions), bot: botLvl(pl.idx), ti: pl.titans.map(t => ({ uid: t.uid, d: t.def.id, on: !!t.base })), sta: pl.stasis.map(e => ({ d: e.card.def.id, n: e.counters })) })),
-    dk: { mad: g.madnessDeck.length, mon: g.monsterDeck.length, tr: g.treasureDeck.length }, uses: g.uses, adj: g.adjusted || null, mdn: g.madness || null, wins: g.winners || (g.winner != null ? [g.winner] : []),
+    pt: (g.turn.played || []).map(e => ({ uid: e.uid, d: e.d, p: e.p, tg: e.tg })), dk: { mad: g.madnessDeck.length, mon: g.monsterDeck.length, tr: g.treasureDeck.length }, uses: g.uses, adj: g.adjusted || null, mdn: g.madness || null, wins: g.winners || (g.winner != null ? [g.winner] : []),
     bases: g.bases.map(b => ({ uid: b.uid, d: b.def.id, pw: g.basePower(b), bp: g.breakpoint(b), on: g.baseActive(b),
       ti: b.titans.map(t => ({ uid: t.uid, d: t.def.id, c: t.controller, pw: t.counters || 0 })), bu: b.buried.length, sc: (b.stored || []).length,
       mn: b.minions.map(m => ({ uid: m.uid, d: m.def.id, c: m.controller, pw: g.powerOf(m), cn: m.counters || 0, sc: (m.stored || []).length, st: !!m.stego, at: m.attached.map(a => ({ uid: a.uid, d: a.def.id, c: a.controller })) })),
@@ -10528,12 +10655,12 @@ function makeGame(log) {
   const rh = { onChange() { host.onChange(); },
     ask(gg, p, spec) { return step({ kind: 'prompt', p, spec }, () => host.ask(gg, p, spec)); },
     chooseTurnAction(gg, p, info) { return step({ kind: 'turn', p, info }, () => host.chooseTurnAction(gg, p, info)); } };
-  S.replaying = log.length > 0; g = SU.createGame({ players: S.cfg.players, host: rh, seed: S.cfg.seed }); S.g = g; AI.hook(g); S.ai = AI.create(g);
+  S.replaying = log.length > 0; g = SU.createGame({ players: S.cfg.players, host: rh, seed: S.cfg.seed, first: S.cfg.first }); S.g = g; AI.hook(g); S.ai = AI.create(g, { SU, snapshot: () => ({ cfg: S.cfg, log: S.log.slice() }) });
   g.run().then(async () => { if (S.g !== g) return; pushView(); if (S.mode === 'host' && S.room) { try { await FB.db.doc(rpath(S.room.code)).update({ status: 'done' }); } catch (e) {} } })
     .catch(err => { if (S.g !== g) return; S.replaying = false; console.error(err); S.err = 'Something went wrong: ' + (err && err.message || err); render(); }); }
-function startEngine(players, mode, bots) {
+function startEngine(players, mode, bots, first) {
   S.bots = bots || []; S.mode = mode; S.pend = null; S.seqN = 0; S.cover = null; S.seat = null; S.modal = null; lastW = ''; S.undoReq = null; S.log = [];
-  S.cfg = { players, seed: Math.floor(Math.random() * 2147483647) }; S.screen = 'game'; ensureArt([...players.flatMap(p => p.factions), ...SPECIAL_DECKS]); makeGame([]); pushView(); }
+  S.cfg = { players, seed: Math.floor(Math.random() * 2147483647), first: first == null ? undefined : first }; S.screen = 'game'; ensureArt([...players.flatMap(p => p.factions), ...SPECIAL_DECKS]); makeGame([]); pushView(); }
 
 /* ----- undo: everyone who is a person must agree, then the game is rebuilt without the last human move ----- */
 const humanSeats = () => S.g.players.map((_, i) => i).filter(i => !botLvl(i));
@@ -10583,10 +10710,10 @@ function draftAuto() {
     if (local) localDraftPick(f); else hostDraftPick(k, f); }, 650); }
 function startLocalDraft() { const s = S.setup, n = s.n, size = draftSize(n); S.dsize = size;
   S.draft = { pool: makePool(size), keys: Array.from({ length: n }, (_, i) => 'p' + i), order: snakeOrder(n), picks: [], names: Object.fromEntries(s.players.slice(0, n).map((p, i) => ['p' + i, p.name.trim() || 'Player ' + (i + 1)])) };
-  S.screen = 'draft'; S.note = ''; render(); }
+  S.screen = 'draft'; S.note = ''; S.drafted = false; render(); }
 function localDraftPick(f) { const D = S.draft; if (!D) return; const k = draftCur(D); if (k == null || !D.pool.includes(f) || D.picks.some(p => p.f === f)) return;
   D.picks.push({ k, f });
-  if (draftDone(D)) { S.setup.players.forEach(p => { p.f = []; }); D.keys.forEach(kk => { S.setup.players[+kk.slice(1)].f = draftFacs(D, kk); }); saveSetup(); S.draft = null; S.screen = 'setup'; S.note = 'Snake draft complete — every player has two factions.'; }
+  if (draftDone(D)) { S.setup.players.forEach(p => { p.f = []; }); D.keys.forEach(kk => { S.setup.players[+kk.slice(1)].f = draftFacs(D, kk); }); saveSetup(); S.draft = null; S.drafted = true; S.screen = 'setup'; S.note = 'Snake draft complete — every player has two factions. The first picker goes first.'; }
   render(); }
 function renderDraftScreen() { const D = S.draft, k = draftCur(D), human = k != null && !S.setup.players[+k.slice(1)].ai;
   return `<header class="hero"><h1 class="logo"><span class="a">SMASH</span><span class="b">UP</span></h1><p class="tag">Pass the screen to whoever is picking.</p></header>
@@ -10603,13 +10730,71 @@ async function hostCancelDraft() { const R = S.room; if (!R || !R.isHost) return
 async function sendDraftPick(f) { const R = S.room; if (!R) return; if (R.isHost) return hostDraftPick(FB.uid, f);
   try { await FB.db.collection(rpath(R.code) + '/inbox').add({ uid: FB.uid, t: 'dpick', f }); } catch (e) { S.err = 'Could not send your pick. Try again.'; render(); } }
 
+
+/* ---------- turn alerts (online rooms) ---------- */
+const NF = { on: false, last: {}, base: document.title, flash: null, ac: null, note: '' };
+try { NF.on = localStorage.getItem('suNotify') === '1'; } catch (e) {}
+const nfPerm = () => { try { return typeof Notification === 'undefined' ? 'none' : Notification.permission; } catch (e) { return 'none'; } };
+function nfBtn() { return S.room ? `<button class="btn ghost" data-act="notify" aria-pressed="${NF.on}" title="Get an alert when it is your turn">${NF.on ? 'Alerts: on' : 'Alert me'}</button>` : ''; }
+function nfChime() { try { const A = window.AudioContext || window.webkitAudioContext; if (!A) return; NF.ac = NF.ac || new A(); const c = NF.ac, t = c.currentTime; if (c.state === 'suspended') c.resume();
+  [[660, 0], [880, .16]].forEach(([f, d]) => { const o = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0, t + d); g.gain.linearRampToValueAtTime(.18, t + d + .02); g.gain.exponentialRampToValueAtTime(.001, t + d + .3); o.connect(g); g.connect(c.destination); o.start(t + d); o.stop(t + d + .32); }); } catch (e) {} }
+function nfToast(msg) { const el = document.getElementById('toast'); if (!el) return; el.textContent = msg; el.classList.add('show'); clearTimeout(nfToast.t); nfToast.t = setTimeout(() => el.classList.remove('show'), 5000); }
+function nfFire(msg) {
+  nfChime(); nfToast(msg);
+  const away = document.hidden || !document.hasFocus();
+  if (away) {
+    clearInterval(NF.flash); let k = 0; document.title = '🔔 ' + msg; NF.flash = setInterval(() => { document.title = (k++ % 2 ? '🔔 ' : NF.base + ' · ') + msg; }, 1200);
+    if (nfPerm() === 'granted') { try { const n = new Notification('Smash Up Table', { body: msg, tag: 'su-turn' }); n.onclick = () => { try { window.focus(); } catch (e) {} n.close(); }; } catch (e) {} } } }
+function nfClear() { if (NF.flash) { clearInterval(NF.flash); NF.flash = null; document.title = NF.base; } }
+window.addEventListener('focus', nfClear); document.addEventListener('visibilitychange', () => { if (!document.hidden) nfClear(); });
+function nfCheck() {
+  let turn = false, ask = false, msg = '';
+  if (S.room && S.mode !== 'local') {
+    if (S.screen === 'game' && S.V && !S.V.over) { const me = actor(); if (me >= 0) { turn = S.V.cur === me; ask = !turn && !!(S.V.prompt && S.V.prompt.p === me); msg = turn ? 'It’s your turn!' : 'The game needs your input.'; } }
+    else if (S.screen === 'lobby' && S.room.draft && !draftDone(S.room.draft)) { turn = draftCur(S.room.draft) === FB.uid; msg = 'It’s your turn to pick a faction!'; }
+  }
+  const was = NF.last, now = turn || ask; NF.last = { t: turn, a: ask };
+  if (NF.on && now && !(was.t || was.a) ) nfFire(msg);
+  else if (NF.on && turn && !was.t) nfFire(msg);
+  if (!now) nfClear(); }
+async function nfToggle() {
+  if (NF.on) { NF.on = false; try { localStorage.setItem('suNotify', '0'); } catch (e) {} nfClear(); nfToast('Turn alerts are off.'); return render(); }
+  NF.on = true; try { localStorage.setItem('suNotify', '1'); } catch (e) {}
+  nfChime(); let r = nfPerm();
+  if (r === 'default') { try { r = await Notification.requestPermission(); } catch (e) { r = 'none'; } }
+  nfToast(r === 'granted' ? 'Alerts on — you’ll get a notification and a chime when it’s your turn.' : r === 'denied' ? 'Alerts on with sound and the tab title only — notifications are blocked in your browser settings.' : 'Alerts on with a chime and the tab title (this browser can’t show system notifications here).');
+  NF.last = {}; render(); }
+/* ---------- table chat (online rooms) ---------- */
+const chatMine = () => FB.uid;
+function chatBtn() { return S.room ? `<button class="btn ghost" data-act="chat" aria-label="Open table chat">Chat<span class="cbadge" data-chatbadge hidden></span></button>` : ''; }
+function chatSync() {
+  const dock = document.getElementById('chatdock'); if (!dock) return; const on = !!S.room && (S.screen === 'lobby' || S.screen === 'game');
+  if (!on) { if (dock.firstChild) dock.innerHTML = ''; return; }
+  if (!dock.firstChild) dock.innerHTML = `<aside class="chat" role="dialog" aria-label="Table chat"><div class="ch"><b>Table chat</b><button class="btn ghost" data-act="chat">Close</button></div><ul class="msgs" aria-live="polite"></ul><div class="cin"><input id="chatin" type="text" maxlength="300" placeholder="Say something…" autocomplete="off" aria-label="Chat message"><button class="btn primary" data-act="chatsend">Send</button></div></aside>`;
+  const C = S.chat, box = dock.querySelector('.chat'), ul = dock.querySelector('.msgs'), was = box.classList.contains('open');
+  const near = ul.scrollHeight - ul.scrollTop - ul.clientHeight < 60;
+  ul.innerHTML = C.msgs.length ? C.msgs.map(m => `<li class="${m.uid === chatMine() ? 'me' : ''}"><span class="who">${esc(m.name || 'Player')}</span><span class="tx">${esc(m.text)}</span></li>`).join('') : '<li class="none">No messages yet. Say hello!</li>';
+  box.classList.toggle('open', !!C.open); if (C.open && (!was || near)) ul.scrollTop = ul.scrollHeight;
+  if (C.open) { const last = C.msgs.length ? C.msgs[C.msgs.length - 1].t || 0 : 0; C.seen = Math.max(C.seen || 0, last); }
+  const unread = C.open ? 0 : C.msgs.filter(m => m.uid !== chatMine() && (m.t || 0) > (C.seen || 0)).length;
+  document.querySelectorAll('[data-chatbadge]').forEach(b => { b.textContent = unread ? String(unread) : ''; b.hidden = !unread; }); }
+async function chatSend() {
+  const inp = document.getElementById('chatin'); if (!inp || !S.room) return; const text = inp.value.trim().slice(0, 300); if (!text) return; inp.value = '';
+  const me = S.room.players.find(p => p.id === FB.uid); const name = (me && me.name) || S.myName || 'Player';
+  try { await FB.db.collection(rpath(S.room.code) + '/chat').add({ uid: FB.uid, name, text, t: Date.now() }); } catch (e) { S.err = 'Could not send that message.'; render(); } }
+function chatSubscribe(db, rp, room) {
+  S.chat = { msgs: [], open: false, seen: 0 }; let first = true;
+  room.unsubs.push(db.collection(rp + '/chat').onSnapshot(q => {
+    const ms = q.docs.map(d => Object.assign({ id: d.id }, d.data())).sort((a, b) => (a.t || 0) - (b.t || 0) || (a.id < b.id ? -1 : 1)).slice(-150);
+    S.chat.msgs = ms; if (first) { first = false; S.chat.seen = ms.length ? ms[ms.length - 1].t || 0 : 0; } chatSync(); }, () => {})); }
+
 /* ---------- rooms ---------- */
 const CODE_CH = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 const newCode = () => Array.from({ length: 4 }, () => CODE_CH[Math.floor(Math.random() * CODE_CH.length)]).join('');
 function leaveRoom() {
   S.undoReq = null;
   if (S.room) S.room.unsubs.forEach(u => { try { u(); } catch (e) {} });
-  S.room = null; S.g = null; S.V = null; S.pend = null; S.mode = null; S.seats = null; S.screen = 'home'; S.err = ''; S.modal = null; render(); }
+  S.room = null; S.chat = { msgs: [], open: false, seen: 0 }; S.g = null; S.V = null; S.pend = null; S.mode = null; S.seats = null; S.screen = 'home'; S.err = ''; S.modal = null; render(); }
 async function enterRoom(code, isHost) {
   const db = FB.db, rp = rpath(code), room = { code, isHost, players: [], status: 'lobby', hostId: null, unsubs: [] };
   S.room = room; S.screen = 'lobby'; S.err = '';
@@ -10618,6 +10803,7 @@ async function enterRoom(code, isHost) {
   if (!cur.exists) await mine.set({ name, f: [], t: Date.now() }); else await mine.update({ name });
   room.unsubs.push(db.doc(rp).onSnapshot(s => { if (!s.exists) return; const d = s.data(); room.status = d.status; room.hostId = d.host; room.bots = d.bots || []; room.draft = d.draft || null; render(); }, () => {}));
   room.unsubs.push(db.collection(rp + '/players').onSnapshot(q => { room.players = q.docs.map(d => Object.assign({ id: d.id }, d.data())).sort((a, b) => a.t - b.t); render(); }, () => {}));
+  chatSubscribe(db, rp, room);
   if (isHost) { let first = true;
     room.unsubs.push(db.collection(rp + '/inbox').onSnapshot(q => { const ch = q.docChanges().filter(c => c.type === 'added'); const stale = first; first = false;
       for (const c of ch) { const d = c.doc.data(); if (!stale) { if (d.t === 'dpick') hostDraftPick(d.uid, d.f); else if (d.t === 'undo') reqUndo(seatOfUid(d.uid)); else if (d.t === 'vote') voteUndo(seatOfUid(d.uid), !!d.yes); else applyAnswer({ seq: d.seq, v: d.v }, d.uid); } db.doc(rp + '/inbox/' + c.doc.id).delete().catch(() => {}); } }, () => {})); }
@@ -10646,7 +10832,7 @@ async function hostStart() {
   S.seats = [...ps.map(p => p.id), ...bots.map((b, i) => 'bot:' + i)];
   try { await FB.db.doc(rpath(S.room.code)).update({ status: 'playing' }); } catch (e) { S.err = 'Could not start.'; render(); return; }
   const Dr = S.room.draft; const list = Dr ? [...ps.map(p => ({ name: p.name, factions: draftFacs(Dr, p.id) })), ...bots.map((b, i) => ({ name: b.name, factions: draftFacs(Dr, 'bot:' + i) }))] : [...ps.map(p => ({ name: p.name, factions: p.f.slice() })), ...bots.map((b, i) => ({ name: b.name, factions: [free[i * 2], free[i * 2 + 1]] }))];
-  startEngine(list, 'host', [...ps.map(() => null), ...bots.map(b => b.lvl)]); }
+  startEngine(list, 'host', [...ps.map(() => null), ...bots.map(b => b.lvl)], Dr ? 0 : null); }
 const BOT_NAMES = ['Ada', 'Bix', 'Cog', 'Dot'];
 function setBots(bots) { S.room.bots = bots; render(); FB.db.doc(rpath(S.room.code)).update({ bots }).catch(() => {}); }
 
@@ -10716,7 +10902,7 @@ function renderSetup() {
     <div class="row" style="margin-top:18px"><button class="btn ghost" data-act="home">Back</button><span class="label">Players</span><div class="seg" role="group" aria-label="Number of players">${[2, 3, 4].map(n => `<button data-act="n" data-n="${n}" aria-pressed="${s.n === n}">${n}</button>`).join('')}</div>
     <button class="btn ghost" data-act="rand">Deal random factions</button></div><div class="setup-grid">`;
   for (let i = 0; i < s.n; i++) { const p = s.players[i];
-    h += `<section class="pcard"><div class="seg" role="group" aria-label="Player ${i + 1} type">${[['human', 'Human'], ['easy', 'AI easy'], ['normal', 'AI normal'], ['hard', 'AI hard']].map(([k, l]) => `<button data-act="ptype" data-i="${i}" data-t="${k}" aria-pressed="${(p.ai || 'human') === k}">${l}</button>`).join('')}</div>
+    h += `<section class="pcard"><div class="seg" role="group" aria-label="Player ${i + 1} type">${[['human', 'Human'], ['easy', 'AI easy'], ['normal', 'AI normal'], ['hard', 'AI hard'], ['expert', 'AI expert']].map(([k, l]) => `<button data-act="ptype" data-i="${i}" data-t="${k}" aria-pressed="${(p.ai || 'human') === k}">${l}</button>`).join('')}</div>
       <input type="text" value="${esc(p.name)}" maxlength="18" aria-label="Player ${i + 1} name" data-pn="${i}">
       <div class="label">Factions (${p.f.length}/2)</div>${slots({ t: 'local', i }, p.f)}
       <div class="btxt">${p.f.map(f => esc(fblurb(f))).join(' ')}</div></section>`; }
@@ -10736,11 +10922,11 @@ function renderLobby() {
   if (!Dr) for (const [i, b] of bots.entries()) h += `<section class="pcard"><div style="font:700 17px var(--body)">${esc(b.name)} <span class="chip">AI ${b.lvl}</span></div><div class="btxt">Gets two random factions when the game starts.</div>${R.isHost && R.status === 'lobby' ? `<div><button class="btn ghost" data-act="rmbot" data-i="${i}">Remove</button></div>` : ''}</section>`;
   if (!Dr) h += `</div>`;
   if (R.isHost && R.status === 'lobby' && !Dr) h += `${draftBox(ps.length + bots.length || 2)}`;
-  if (R.isHost && R.status === 'lobby' && !Dr) h += `<div class="row" style="margin-top:16px"><span class="label">Add a computer player</span>${['easy', 'normal', 'hard'].map(l => `<button class="btn" data-act="addbot" data-l="${l}" ${ps.length + bots.length >= 4 ? 'disabled' : ''}>${l}</button>`).join('')}</div>`;
+  if (R.isHost && R.status === 'lobby' && !Dr) h += `<div class="row" style="margin-top:16px"><span class="label">Add a computer player</span>${['easy', 'normal', 'hard', 'expert'].map(l => `<button class="btn" data-act="addbot" data-l="${l}" ${ps.length + bots.length >= 4 ? 'disabled' : ''}>${l}</button>`).join('')}</div>`;
   h += `<div class="row" style="margin-top:22px">`;
   if (R.isHost) h += `<button class="btn primary" data-act="hstart" ${bad || R.status !== 'lobby' ? 'disabled' : ''}>Start the game</button>${bad ? `<span class="btxt">${esc(bad)}</span>` : ''}`;
   else h += `<span class="btxt">${R.status === 'lobby' ? 'Waiting for the host to start…' : 'The game has started. Reconnecting…'}</span>`;
-  return h + `<button class="btn ghost" data-act="leave">Leave room</button></div>`; }
+  return h + `${nfBtn()}${chatBtn()}<button class="btn ghost" data-act="leave">Leave room</button></div>`; }
 
 function renderBoard(prm, cover) {
   const V = S.V; const mine = prm && !cover;
@@ -10753,7 +10939,9 @@ function renderBoard(prm, cover) {
       <div class="meta"><span class="mono"><b>${b.pw}</b> / ${b.bp}</span><span class="vps">${D.vp.map(v => `<span>${v}</span>`).join('')}</span>${b.on ? '' : '<span class="chip">abilities off</span>'}${ready ? '<span class="chip" style="--f:var(--good)">ready to score</span>' : ''}</div>
       <div class="meter ${ready ? 'ready' : ''}"><i style="width:${Math.min(100, Math.round(b.pw / b.bp * 100))}%"></i></div>
       ${IMGU.bases[b.d] ? '' : `<div class="btxt">${esc(D.text)}</div>`}`;
-    if (b.ac.length) h += `<div class="acts">${b.ac.map(a => `<button class="act" style="--f:${fcol(CARDS[a.d].faction)}" data-act="inspect" data-uid="${a.uid}">${esc(CARDS[a.d].name)} <small>${pn(a.c)}</small></button>`).join('')}</div>`;
+    if (b.ac.length) h += `<div class="bacts">${b.ac.map(a => { const d = CARDS[a.d], u = IMGU.cards[a.d];
+      return u ? `<button class="bact" style="--f:${fcol(d.faction)}" data-act="zoom" data-z="card:${a.d}" title="${esc(d.name + ' · ' + d.text + ' (on this base; played by ' + pn(a.c) + ')')}" aria-label="${esc(d.name)}, action on ${esc(D.name)}, played by ${esc(S.V.players[a.c] ? S.V.players[a.c].name : '')}. Tap to enlarge."><img src="${u}" alt="" draggable="false"><small>${pn(a.c)}</small></button>`
+        : `<button class="act" style="--f:${fcol(d.faction)}" data-act="inspect" data-uid="${a.uid}">${esc(d.name)} <small>${pn(a.c)}</small></button>`; }).join('')}</div>`;
     if (b.bu || b.sc) h += `<div class="acts">${b.bu ? `<span class="chip">${b.bu} buried</span>` : ''}${b.sc ? `<span class="chip">${b.sc} stored</span>` : ''}</div>`;
     const mons = b.mn.filter(m => m.c == null);
     if (!b.mn.length && !b.ti.length) h += '<div class="empty">No minions yet.</div>';
@@ -10768,11 +10956,16 @@ function renderBoard(prm, cover) {
         const tags = [...m.at.map(a => CARDS[a.d].name), ...(m.cn ? [`+${m.cn} counter${m.cn > 1 ? 's' : ''}`] : []), ...(m.sc ? [`${m.sc} stored`] : []), ...(m.st ? ['braced'] : [])];
         const act = candM && candM.has(m.uid) ? 'pickminion' : 'inspect', im = IMGU.cards[m.d];
         if (im) { cls.push('im'); const up = m.pw > d.power ? 'up' : m.pw < d.power ? 'down' : '';
-          return `<button class="${cls.join(' ')}" style="--f:${fcol(d.faction)}" data-act="${act}" data-uid="${m.uid}" title="${esc(d.name + ' · ' + d.text + (tags.length ? ' · ' + tags.join(', ') : ''))}" aria-label="${esc(d.name)}, power ${m.pw}"><img src="${im}" alt="" draggable="false"><span class="pwb ${up}">${m.pw}</span>${m.cn ? `<span class="ctb">+${m.cn}</span>` : ''}${m.at.length ? `<span class="atb">${m.at.length}✦</span>` : ''}${m.st ? '<span class="stb">braced</span>' : m.sc ? `<span class="stb">${m.sc} stored</span>` : ''}</button>`; }
-        return `<button class="${cls.join(' ')}" style="--f:${fcol(d.faction)}" data-act="${act}" data-uid="${m.uid}" title="${esc(d.text)}"><span class="t"><span>${esc(d.name)}</span><span class="pw ${m.pw > d.power ? 'up' : m.pw < d.power ? 'down' : ''}">${m.pw}</span></span>${tags.length ? `<small>${esc(tags.join(' · '))}</small>` : ''}</button>`; }).join('')}</div></div>`; }
+          const btn = `<button class="${cls.join(' ')}" style="--f:${fcol(d.faction)}" data-act="${act}" data-uid="${m.uid}" title="${esc(d.name + ' · ' + d.text + (tags.length ? ' · ' + tags.join(', ') : ''))}" aria-label="${esc(d.name)}, power ${m.pw}${m.at.length ? ', with ' + m.at.length + ' attached' : ''}"><img src="${im}" alt="" draggable="false"><span class="pwb ${up}">${m.pw}</span>${m.cn ? `<span class="ctb">+${m.cn}</span>` : ''}${m.st ? '<span class="stb">braced</span>' : m.sc ? `<span class="stb">${m.sc} stored</span>` : ''}</button>`;
+          return m.at.length ? `<div class="mnw">${btn}${atStack(m, true)}</div>` : btn; }
+        const tags2 = tags.filter(x => !m.at.some(a => CARDS[a.d].name === x));
+        const btn2 = `<button class="${cls.join(' ')}" style="--f:${fcol(d.faction)}" data-act="${act}" data-uid="${m.uid}" title="${esc(d.text)}"><span class="t"><span>${esc(d.name)}</span><span class="pw ${m.pw > d.power ? 'up' : m.pw < d.power ? 'down' : ''}">${m.pw}</span></span>${tags2.length ? `<small>${esc(tags2.join(' · '))}</small>` : ''}</button>`;
+        return m.at.length ? `<div class="mnw txt">${btn2}${atStack(m, false)}</div>` : btn2; }).join('')}</div></div>`; }
     h += '</article>'; }
   return h + '</div>'; }
 
+const atStack = (m, im) => m.at.length ? `<div class="atch ${im ? 'im' : ''}" aria-label="Attached: ${esc(m.at.map(a => CARDS[a.d].name).join(', '))}">${m.at.map((a, i) => { const d = CARDS[a.d], u = IMGU.cards[a.d];
+  return `<button class="at" style="--f:${fcol(d.faction)};z-index:${9 - i}" data-act="inspect" data-uid="${a.uid}" title="${esc(d.name + ' · ' + d.text + ' (attached; played by ' + pn(a.c) + ')')}" aria-label="${esc(d.name)}, attached to ${esc(CARDS[m.d].name)}">${u ? `<img src="${u}" alt="" draggable="false">` : `<span class="atn">${esc(d.name)}</span>`}</button>`; }).join('')}</div>` : '';
 function why(c, seat) { const V = S.V, d = CARDS[c.d], isM = d.type === 'minion' || d.type === 'fusion', isA = d.type === 'action' || d.type === 'fusion';
   if (d.specialOnly) return 'This is a Special: you can only play it just before a base scores.';
   if (isM && !isA && V.tm[0] <= 0) return 'You have already played your minion this turn.';
@@ -10802,15 +10995,24 @@ function logItem(l) {
   const cards = found.map(([name, f]) => { const im = f.k === 'base' ? IMGU.bases[f.id] : IMGU.cards[f.id], tx = f.k === 'base' ? BASES[f.id].text : CARDS[f.id].text;
     return `<button class="lc ${f.k}" data-act="zoom" data-z="${f.k}:${f.id}" title="Tap to enlarge">${im ? `<img src="${im}" alt="" draggable="false">` : ''}<span><b>${esc(name)}</b><small>${esc(tx)}</small></span></button>`; }).join('');
   return `<li class="${l.startsWith('\u2014') ? 'turn' : ''}"><span>${esc(l)}</span>${cards ? `<div class="lcs">${cards}</div>` : ''}</li>`; }
+function renderTray(V) {
+  const list = (V.pt || []).slice().reverse().slice(0, 8);
+  const items = list.map(e => { const d = CARDS[e.d], im = IMGU.cards[e.d], who = V.players[e.p] ? V.players[e.p].name : '?';
+    const cap = `<span class="tw">${esc(who)}</span>${e.tg ? `<span class="tt">on ${esc(e.tg)}</span>` : ''}`;
+    return im ? `<button class="tray-c" style="--f:${fcol(d.faction)}" data-act="zoom" data-z="card:${e.d}" title="${esc(d.name + ' · ' + d.text)}" aria-label="${esc(who)} played ${esc(d.name)}${e.tg ? ' on ' + esc(e.tg) : ''}. Tap to enlarge."><img src="${im}" alt="" draggable="false"><span class="cap">${cap}</span></button>`
+      : `<div class="tray-c txt" style="--f:${fcol(d.faction)}" title="${esc(d.text)}"><b>${esc(d.name)}</b><small>${esc(d.text)}</small><span class="cap">${cap}</span></div>`; }).join('');
+  return `<aside class="tray ${list.length ? '' : 'none'}" aria-label="Actions played this turn"><div class="th"><b>Played this turn</b>${V.over ? '' : `<span class="btxt">${esc(V.players[V.cur] ? V.players[V.cur].name : '')}</span>`}</div>${items || '<div class="empty">No actions played yet this turn.</div>'}</aside>`; }
 function renderGame() {
   const V = S.V, me = actor(), cover = S.mode === 'local' ? S.cover : null;
   const prm = V.prompt, tn = V.turn;
   if (prm && S.selSeq !== prm.seq) { S.selSeq = prm.seq; S.sel = new Set(prm.pre ? (prm.k === 'cards' ? prm.cands.map(c => c.uid) : []) : []); }
   const waitP = prm ? prm.p : tn ? tn.p : null;
-  let h = `${errBox()}<div class="score">${V.players.map((pl, i) => `<div class="pl ${V.cur === i ? 'turn' : ''}"><span class="nm">${esc(pl.name)}${i === me && S.mode !== 'local' ? ' <span class="chip">you</span>' : ''}${pl.bot ? ` <span class="chip">AI ${pl.bot}</span>` : ''}</span><span class="vp">${pl.vp}<small>VP</small></span>
-    <span class="fs">${pl.f.map(chip).join('')}</span><span class="cnt"><span>Hand ${pl.hand.length}</span><span>Deck ${pl.deck}</span><span>Discard ${pl.disc.length}</span>${pl.ti.map(t => `<span class="tinfo" title="${esc(CARDS[t.d].text)}">♛ ${esc(CARDS[t.d].name)} ${t.on ? '(in play)' : '(ready)'}</span>`).join('')}${pl.sta.map(e => `<span class="tinfo">${esc(CARDS[e.d].name)} in stasis (${e.n})</span>`).join('')}</span></div>`).join('')}</div>
-    <div class="bar"><div class="phase">${(V.uses.madness || V.uses.monsters) && !V.over ? `<span class="decks">${V.uses.madness ? `Madness deck ${V.dk.mad}` : ''}${V.uses.monsters ? ` · Monsters ${V.dk.mon} · Treasure ${V.dk.tr}` : ''}</span><br>` : ''}${V.over ? 'Game over' : `${pn(V.cur)}’s turn · minion <b>${V.tm[0]}</b> · action <b>${V.tm[1]}</b> left`}${S.mode !== 'local' && !V.over && waitP != null && waitP !== me ? ` · <span class="btxt">waiting for ${pn(waitP)}</span>` : ''}</div>
-      <div class="row"><button class="btn ghost" data-act="undo" ${V.cu && !V.undo ? '' : 'disabled'}>Undo</button><button class="btn ghost" data-act="discards">Discard piles</button><button class="btn ghost" data-act="log">${S.showLog ? 'Hide log' : 'Show log'}</button><button class="btn ghost" data-act="${S.mode === 'local' ? 'quit' : 'leave'}">${S.mode === 'local' ? 'New game' : 'Leave room'}</button></div></div>`;
+  const tcards = pl => pl.ti.filter(t => IMGU.cards[t.d]).map(t => { const d = CARDS[t.d]; return `<button class="tcard ${t.on ? 'out' : ''}" style="--f:${fcol(d.faction)}" data-act="zoom" data-z="card:${t.d}" title="${esc(d.name + ' · ' + d.text)}" aria-label="${esc(d.name)}, titan, ${t.on ? 'in play' : 'ready'}. Tap to enlarge."><img src="${IMGU.cards[t.d]}" alt="" draggable="false"><span class="stb">${t.on ? 'in play' : 'ready'}</span></button>`; }).join('');
+  let h = `${errBox()}<div class="score">${V.players.map((pl, i) => { const tc = tcards(pl); return `<div class="pl ${V.cur === i ? 'turn' : ''} ${tc ? 'hasti' : ''}"><span class="nm">${esc(pl.name)}${i === me && S.mode !== 'local' ? ' <span class="chip">you</span>' : ''}${pl.bot ? ` <span class="chip">AI ${pl.bot}</span>` : ''}</span><span class="vp">${pl.vp}<small>VP</small></span>
+    <span class="fs">${pl.f.map(chip).join('')}</span><span class="cnt"><span>Hand ${pl.hand.length}</span><span>Deck ${pl.deck}</span><span>Discard ${pl.disc.length}</span>${pl.ti.filter(t => !IMGU.cards[t.d]).map(t => `<span class="tinfo" title="${esc(CARDS[t.d].text)}">♛ ${esc(CARDS[t.d].name)} ${t.on ? '(in play)' : '(ready)'}</span>`).join('')}${pl.sta.map(e => `<span class="tinfo">${esc(CARDS[e.d].name)} in stasis (${e.n})</span>`).join('')}</span>${tc ? `<div class="tcards">${tc}</div>` : ''}</div>`; }).join('')}</div>
+    <div class="bar"><div class="phase">${(V.uses.madness || V.uses.monsters) && !V.over ? `<span class="decks">${V.uses.madness ? `Madness deck ${V.dk.mad}` : ''}${V.uses.monsters ? ` · Monsters ${V.dk.mon} · Treasure ${V.dk.tr}` : ''}</span><br>` : ''}${V.over ? 'Game over' : `${pn(V.cur)}’s turn · minion <b>${V.tm[0]}</b> · action <b>${V.tm[1]}</b> left`}${S.mode !== 'local' && !V.over && waitP != null && waitP !== me ? ` · <span class="btxt">waiting for ${pn(waitP)}</span>` : ''}${S.thinking != null && !V.over ? ' · <span class="btxt">thinking…</span>' : ''}</div>
+      <div class="row"><button class="btn ghost" data-act="undo" ${V.cu && !V.undo ? '' : 'disabled'}>Undo</button><button class="btn ghost" data-act="discards">Discard piles</button><button class="btn ghost" data-act="log">${S.showLog ? 'Hide log' : 'Show log'}</button>${nfBtn()}${chatBtn()}<button class="btn ghost" data-act="${S.mode === 'local' ? 'quit' : 'leave'}">${S.mode === 'local' ? 'New game' : 'Leave room'}</button></div></div>`;
+  h += `<div class="gl">${renderTray(V)}<div class="gm">`;
   h += renderBoard(prm && prm.p === me ? prm : null, cover);
   if (S.showLog) h += `<div class="sect"><h2>Table log</h2></div><ul class="log">${V.log.slice().reverse().map(logItem).join('')}</ul>`;
   if (me != null && me >= 0 && !cover && !V.over) {
@@ -10821,7 +11023,7 @@ function renderGame() {
     h += `<div class="hand">${pl.hand.length ? pl.hand.map(c => cardTile(c, { act: 'hcard', sel: S.selCard === c.uid, off: mode && !(tn.play[c.uid] || []).length })).join('') : '<div class="empty">Your hand is empty.</div>'}</div>`;
     if (mode) h += `<div class="row" style="margin-top:16px"><button class="btn primary" data-act="end">Done playing: score bases and draw</button></div>`; }
   else if (me === -1 && S.mode !== 'local') h += `<div class="sect"><h2>Spectating</h2></div><div class="empty">You are watching this game.</div>`;
-  return h; }
+  return h + '</div></div>'; }
 
 /* choices whose labels name a card or base (pick a base from the deck, pick a card name) show as pictures */
 const NAME1 = new RegExp(NAMES.re.source);
@@ -10853,11 +11055,12 @@ function renderLayer() {
         <button class="btn" data-act="vote" data-y="0" ${local ? 'data-s="' + u.need[0] + '"' : ''}>${u.need.includes(me) || local ? 'Decline' : 'Cancel'}</button></div></div></div>`; }
   else if (S.mode === 'local' && S.cover != null) h += `<div class="overlay"><div class="panel"><div class="label">Pass the device</div><h2>${pn(S.cover)}, you’re up</h2><p class="btxt" style="margin:0">Everyone else look away. Your hand is shown once you tap the button.</p><button class="btn primary" data-act="seat" data-p="${S.cover}">I’m ${pn(S.cover)}</button></div></div>`;
   else if (V.over) h += `<div class="overlay"><div class="panel"><div class="label">Final scores</div><h2>${V.wins.length > 1 ? V.wins.map(pn).join(' and ') + ' share the win' : pn(V.win) + ' wins'}</h2><ul class="dlist">${V.players.map((p, i) => ({ p, i })).sort((a, b) => (V.adj ? V.adj[b.i] - V.adj[a.i] : b.p.vp - a.p.vp)).map(({ p, i }) => `<li><span>${esc(p.name)}</span><b class="mono">${V.uses.madness && V.mdn ? `${p.vp} VP − ${Math.floor(V.mdn[i] / 2)} for ${V.mdn[i]} Madness = ${V.adj[i]}` : p.vp + ' VP'}</b></li>`).join('')}</ul><div class="row"><button class="btn primary" data-act="${S.mode === 'local' ? 'quit' : 'leave'}">${S.mode === 'local' ? 'Play again' : 'Leave room'}</button></div></div></div>`;
-  else if (S.modal === 'zoom' && S.zoom) h += `<div class="overlay" data-act="closemodal"><img class="zoomimg" src="${S.zoom}" alt="" data-act="closemodal"></div>`;
+  else if (S.modal === 'zoom' && (S.zoom || S.zoomId)) { const z = S.zoomId || {}, zd = z.k === 'base' ? (typeof BASES !== 'undefined' ? BASES[z.id] : null) : CARDS[z.id];
+    h += `<div class="overlay" data-act="closemodal">${S.zoom ? `<img class="zoomimg" src="${S.zoom}" alt="${esc(zd ? zd.name : '')}" data-act="closemodal">` : `<div class="ztext" data-act="closemodal"><b>${esc(zd ? zd.name : 'Card')}</b><span>${esc(zd && zd.text ? zd.text : '')}</span></div>`}<button class="btn primary zclose" data-act="closemodal">${S.zoomBack ? 'Back to discards' : 'Close'}</button></div>`; }
   else if (S.modal === 'discards') { const k = S.dtab, pl = V.players[k];
     h += `<div class="overlay" data-act="closemodal"><div class="panel wide" data-stop="1"><h2>Discard piles</h2><div class="tabs">${V.players.map((p, i) => `<button data-act="dtab" data-i="${i}" aria-pressed="${i === k}">${esc(p.name)} (${p.disc.length})</button>`).join('')}</div>
       <div class="btxt">Most recent first. Tap a card to enlarge it.</div>
-      <div class="dgrid">${pl.disc.length ? pl.disc.slice().reverse().map(d => { const c = CARDS[d], im = IMGU.cards[d]; return `<button class="dc" style="--f:${fcol(c.faction)}" data-act="zoom" data-z="card:${d}" title="${esc(c.name + ' \u00b7 ' + c.text)}">${im ? `<img src="${im}" alt="" draggable="false">` : ''}<small>${esc(c.name)}</small></button>`; }).join('') : '<div class="empty">Empty.</div>'}</div>
+      <div class="dgrid">${pl.disc.length ? pl.disc.slice().reverse().map(d => { const c = CARDS[d], im = IMGU.cards[d]; return `<button class="dc" style="--f:${fcol(c.faction)}" data-act="zoom" data-z="card:${d}" title="${esc(c.name + ' \u00b7 ' + c.text)}">${im ? `<img src="${im}" alt="" draggable="false">` : ''}<small><b>${esc(c.name)}</b>${im ? '' : `<br>${esc(c.text || '')}`}</small></button>`; }).join('') : '<div class="empty">Empty.</div>'}</div>
       <button class="btn" data-act="closemodal">Close</button></div></div>`; }
   return h + renderSheet(); }
 
@@ -10867,12 +11070,13 @@ function render() {
   else { $app.className = 'wrap'; $layer.innerHTML = S.picker ? renderPicker() : '';
     $app.innerHTML = S.screen === 'draft' && S.draft ? renderDraftScreen() : S.screen === 'setup' ? renderSetup() : S.screen === 'lobby' && S.room ? renderLobby() : renderHome(); }
   if (keepId) { const el = document.getElementById(keepId.id); if (el) { el.focus(); try { el.setSelectionRange(keepId.s, keepId.s); } catch (e) {} } }
-  window.scrollTo(keep.x, keep.y); draftAuto(); }
+  window.scrollTo(keep.x, keep.y); draftAuto(); chatSync(); nfCheck(); }
 
 /* ---------- events ---------- */
 document.addEventListener('input', e => { const t = e.target, a = t.getAttribute && t.getAttribute('data-pn');
   if (a != null) { S.setup.players[+a].name = t.value; saveSetup(); const b = document.querySelector('[data-act=start]'); if (b) b.disabled = !S.setup.players.slice(0, S.setup.n).every(p => p.f.length === 2 && p.name.trim()); }
   const k = t.getAttribute && t.getAttribute('data-in'); if (k) { S[k] = k === 'joinCode' ? t.value.toUpperCase() : t.value; if (k === 'myName') saveName(); if (k === 'pq') render(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target && e.target.id === 'chatin') { e.preventDefault(); chatSend(); } if (e.key === 'Escape' && S.chat.open && !S.modal) { S.chat.open = false; chatSync(); } });
 document.addEventListener('change', e => { const t = e.target;
   if (t.getAttribute && t.getAttribute('data-lname') && S.room) { const nm = t.value.trim().slice(0, 18) || 'Player'; S.myName = nm; saveName(); FB.db.doc(rpath(S.room.code) + '/players/' + FB.uid).update({ name: nm }).catch(() => {}); } });
 document.addEventListener('click', e => {
@@ -10890,23 +11094,26 @@ document.addEventListener('click', e => {
     case 'rmbot': { const bs = (S.room.bots || []).slice(); bs.splice(+el.dataset.i, 1); return setBots(bs); }
     case 'pick': S.picker = { t: el.dataset.t, i: +el.dataset.i, s: +el.dataset.s }; S.pq = ''; render(); { const q = document.getElementById('pq'); if (q) q.focus(); } return;
     case 'closepick': S.picker = null; return render();
-    case 'pickf': case 'pickrand': case 'pickclear': { const P = S.picker; if (!P) return; let id = a === 'pickf' ? el.dataset.f : null;
+    case 'pickf': case 'pickrand': case 'pickclear': { const P = S.picker; if (!P) return; S.drafted = false; S.note = ''; let id = a === 'pickf' ? el.dataset.f : null;
       if (a === 'pickrand') { const tk = pickerTaken(); const c = fkeys().filter(f => !tk.has(f)); id = c[Math.floor(Math.random() * c.length)]; }
       if (P.t === 'local') { const p = S.setup.players[P.i]; setSlot(p.f, P.s, id); saveSetup(); }
       else if (S.room) { const me = S.room.players.find(p => p.id === FB.uid); if (me) { me.f = setSlot((me.f || []).slice(), P.s, id); FB.db.doc(rpath(S.room.code) + '/players/' + FB.uid).update({ f: me.f }).catch(() => {}); } }
       S.picker = null; return render(); }
     case 'lpf': { const me = S.room.players.find(p => p.id === FB.uid); if (!me) return; const f = (me.f || []).slice(), k = f.indexOf(el.dataset.f);
       if (k >= 0) f.splice(k, 1); else if (f.length < 2) f.push(el.dataset.f); me.f = f; render(); FB.db.doc(rpath(S.room.code) + '/players/' + FB.uid).update({ f }).catch(() => {}); return; }
+    case 'notify': return nfToggle();
+    case 'chat': S.chat.open = !S.chat.open; chatSync(); if (S.chat.open) { const i = document.getElementById('chatin'); if (i) i.focus(); } return;
+    case 'chatsend': chatSend(); { const i = document.getElementById('chatin'); if (i) i.focus(); } return;
     case 'dstart': if (S.screen === 'setup') return startLocalDraft(); return hostStartDraft();
     case 'dpick': if (S.screen === 'draft') return localDraftPick(el.dataset.f); return sendDraftPick(el.dataset.f);
     case 'dcancel': if (S.screen === 'draft') { S.draft = null; if (S.dtimer) { clearTimeout(S.dtimer); S.dtimer = null; } S.screen = 'setup'; return render(); } return hostCancelDraft();
     case 'dundo': { const D = S.draft; if (!D || !D.picks.length) return; if (S.dtimer) { clearTimeout(S.dtimer); S.dtimer = null; } D.picks.pop(); while (D.picks.length && S.setup.players[+draftCur(D).slice(1)].ai) D.picks.pop(); return render(); }
-    case 'n': S.setup.n = +el.dataset.n; S.note = ''; saveSetup(); return render();
-    case 'pf': { const p = S.setup.players[+el.dataset.i], f = el.dataset.f, k = p.f.indexOf(f); if (k >= 0) p.f.splice(k, 1); else if (p.f.length < 2) p.f.push(f); saveSetup(); return render(); }
+    case 'n': S.setup.n = +el.dataset.n; S.note = ''; S.drafted = false; saveSetup(); return render();
+    case 'pf': { S.drafted = false; const p = S.setup.players[+el.dataset.i], f = el.dataset.f, k = p.f.indexOf(f); if (k >= 0) p.f.splice(k, 1); else if (p.f.length < 2) p.f.push(f); saveSetup(); return render(); }
     case 'ptype': { const p = S.setup.players[+el.dataset.i], t = el.dataset.t === 'human' ? null : el.dataset.t; p.ai = t;
       if (t && /^Player \d$/.test(p.name)) p.name = 'Bot ' + (+el.dataset.i + 1); if (!t && /^Bot \d$/.test(p.name)) p.name = 'Player ' + (+el.dataset.i + 1); saveSetup(); return render(); }
-    case 'rand': { const f = fkeys().sort(() => Math.random() - .5); S.setup.players.forEach((p, i) => { p.f = i < S.setup.n ? [f[i * 2], f[i * 2 + 1]] : []; }); saveSetup(); return render(); }
-    case 'start': { const s = S.setup; startEngine(s.players.slice(0, s.n).map(p => ({ name: p.name.trim() || 'Player', factions: p.f.slice() })), 'local', s.players.slice(0, s.n).map(p => p.ai || null)); return; }
+    case 'rand': { S.drafted = false; S.note = ''; const f = fkeys().sort(() => Math.random() - .5); S.setup.players.forEach((p, i) => { p.f = i < S.setup.n ? [f[i * 2], f[i * 2 + 1]] : []; }); saveSetup(); return render(); }
+    case 'start': { const s = S.setup; startEngine(s.players.slice(0, s.n).map(p => ({ name: p.name.trim() || 'Player', factions: p.f.slice() })), 'local', s.players.slice(0, s.n).map(p => p.ai || null), S.drafted ? 0 : null); return; }
     case 'quit': S.g = null; S.V = null; S.pend = null; S.mode = null; S.cover = null; S.seat = null; S.modal = null; S.screen = 'setup'; return render();
     case 'seat': S.seat = +el.dataset.p; S.cover = null; return render();
     case 'discards': S.modal = 'discards'; S.dtab = 0; return render();
@@ -10916,7 +11123,7 @@ document.addEventListener('click', e => {
       if (S.mode === 'local') return voteUndo(+el.dataset.s, y);
       if (S.mode === 'guest') return void sendMeta({ t: 'vote', yes: y }); return voteUndo(seatOfUid(FB.uid), y); }
     case 'closemodal': if (S.modal === 'zoom' && S.zoomBack) { S.modal = S.zoomBack; S.zoomBack = null; } else S.modal = null; return render();
-    case 'zoom': { const [k, id] = el.dataset.z.split(':'); S.zoom = k === 'base' ? IMGU.bases[id] : IMGU.cards[id]; if (S.zoom) { S.zoomBack = S.modal === 'discards' ? 'discards' : null; S.modal = 'zoom'; render(); } return; }
+    case 'zoom': { const zz = el.dataset.z, zi = zz.indexOf(':'), k = zz.slice(0, zi), id = zz.slice(zi + 1); S.zoom = (k === 'base' ? IMGU.bases[id] : IMGU.cards[id]) || ''; S.zoomId = { k, id }; S.zoomBack = S.modal === 'discards' ? 'discards' : null; S.modal = 'zoom'; return render(); }
     case 'log': S.showLog = !S.showLog; return render();
     case 'hcard': { const u = +el.dataset.uid; S.selCard = S.selCard === u ? null : u; S.inspect = null; return render(); }
     case 'inspect': if (S.V && S.V.prompt && S.V.prompt.p === actor()) return; S.inspect = +el.dataset.uid; S.selCard = null; return render();
