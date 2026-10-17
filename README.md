@@ -27,5 +27,6 @@ If online play shows an error, the message names what is wrong (usually a config
 
 - The Firebase web config in `config.js` is meant to be public. The rules above let anyone who opens your site create and join rooms, which is fine for a friends-only game; don't share the link widely.
 - The free plan allows tens of thousands of reads and writes per day, plenty for several games a day. Old rooms stay in the database; delete the `rooms` collection in the console whenever you like.
-- 16 licensed Marvel/Disney factions are not included (no card text or art exists on the wikis).
+- Marvel/Disney: Avengers, Kree, The Lion King and Wreck-It Ralph are playable and marked **WIP but playable** (card text paraphrased from the wiki, no card art). The other 12 Marvel/Disney factions are listed as "Coming soon".
+- Every base from every set is in the base pool in every game.
 - Some cards are approximations of the printed rules; they are documented in the project notes.

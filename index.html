@@ -203,6 +203,7 @@ details.rules li { margin: 4px 0; }
 .frow{display:flex;gap:10px;align-items:center;text-align:left;padding:6px 9px 6px 6px;border:1.5px solid var(--line);border-left:4px solid var(--f);background:var(--surface-2);border-radius:10px;min-width:0}
 .frow:not([disabled]):hover{background:var(--surface);border-color:var(--f)}.frow.cur{box-shadow:inset 0 0 0 1.5px var(--f)}
 .frow[disabled]{opacity:.5;cursor:not-allowed}.frow .cv{width:52px;height:52px}.frow em{font:600 10px var(--body);font-style:normal;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:5px;padding:0 4px;margin-left:4px}
+.fi em.wip{font:600 10px var(--body);font-style:normal;letter-spacing:.06em;text-transform:uppercase;color:#c8941a;border:1px solid #c8941a;border-radius:5px;padding:0 4px;margin-left:4px;white-space:nowrap}.chip .wipc{font-size:9px;font-weight:700;letter-spacing:.05em;color:#c8941a;margin-left:3px}
 .frow .fi small{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 
 .dbox{display:grid;gap:10px;margin-top:18px;padding:14px;border:1.5px dashed var(--line);border-radius:12px;background:var(--surface-2)}
@@ -278,7 +279,7 @@ details.rules li { margin: 4px 0; }
 </style>
 
 <div class="wrap" id="app"></div>
-<div class="ver" aria-label="Page version">Version Oct 17 20:22 UTC</div>
+<div class="ver" aria-label="Page version">Version Oct 17 21:31 UTC</div>
 <div id="layer"></div>
 <div id="chatdock"></div><div id="toast" role="status" aria-live="polite"></div>
 
@@ -1106,7 +1107,7 @@ function createGame(opts) {
       const b = ready.length === 1 ? ready[0] : await g.pickBase(g.current, ready, 'Several bases are ready. Which scores first?');
       await scoreBase(b || ready[0]); } };
   async function clearBase(b) {
-    for (const m of [...b.minions]) { if (m.base !== b) continue; const ctrl = m.controller, gr = m.def.id === 'gremlin'; await g.removeMinion(m, 'scored', null, 'discard'); if (gr && ctrl != null) g.draw(ctrl, 1); }
+    for (let pass = 0; pass < 6 && b.minions.length; pass++) for (const m of [...b.minions]) { if (m.base !== b) continue; const ctrl = m.controller, gr = m.def.id === 'gremlin'; await g.removeMinion(m, 'scored', null, 'discard'); if (gr && ctrl != null) g.draw(ctrl, 1); }
     for (const a of [...b.actions]) if (a.onBase === b) g.discardAction(a);
     for (const e of [...b.buried]) g.toDiscard(e.card); b.buried = [];
     for (const c of b.stored || []) g.toDiscard(c); b.stored = [];
@@ -1170,7 +1171,13 @@ function createGame(opts) {
   g.baseEntered = async nb => { const n = nb.def.monsters || 0; for (let i = 0; i < n; i++) await g.playMonster(nb); await g.emit('baseEntered', { b: nb }); };
   function drawBaseDef() { if (!g.baseDeck.length && g.baseDiscard.length) { g.baseDeck = g.shuffle(g.baseDiscard); g.baseDiscard = []; } return g.baseDeck.pop() || null; }
   g.drawBaseDef = drawBaseDef;
-  function newBase(def) { return def ? { uid: nid(), def, minions: [], actions: [], titans: [], buried: [], stored: [], breakMods: [], cancelUntil: null, cancelAll: null, flags: {}, tempPower: {} } : null; }
+  /* a base that brings its own components (monsters, Madness, treasure) adds those decks if nobody has them yet */
+  function ensureDecks(def) { const t = def.text || '', add = (kind, arr, shuf) => { for (const id of Object.keys(CARDS)) if (CARDS[id].faction === kind) for (let i = 0; i < CARDS[id].count; i++) arr.push({ uid: nid(), def: CARDS[id], owner: null, flags: {} }); if (shuf) g.shuffle(arr); };
+    if ((def.monsters || /monster/i.test(t)) && !g.uses.monsters) { g.uses.monsters = true; add('monster', g.monsterDeck, true); if (!g.uses.treasure) { g.uses.treasure = true; add('treasure', g.treasureDeck, true); } }
+    if (/treasure/i.test(t) && !g.uses.treasure) { g.uses.treasure = true; add('treasure', g.treasureDeck, true); }
+    if (/madness/i.test(t) && !g.uses.madness) { g.uses.madness = true; add('madness', g.madnessDeck, false); }
+    if (g.onDecksAdded) g.onDecksAdded(); }
+  function newBase(def) { if (def) ensureDecks(def); return def ? { uid: nid(), def, minions: [], actions: [], titans: [], buried: [], stored: [], breakMods: [], cancelUntil: null, cancelAll: null, flags: {}, tempPower: {} } : null; }
   g.newBase = newBase;
 
   /* ----- turns ----- */
@@ -1248,10 +1255,8 @@ function createGame(opts) {
     if (g.uses.madness) mk('madness', g.madnessDeck);
     if (g.uses.monsters) { mk('monster', g.monsterDeck); g.shuffle(g.monsterDeck); }
     if (g.uses.treasure) { mk('treasure', g.treasureDeck); g.shuffle(g.treasureDeck); }
-    /* every base in the game is in the pool, whoever's factions are playing; only those that need a deck/component nobody brought (monsters, Madness, treasure, titans) are left out */
-    const hasTitan = g.players.some(pl => pl.titans.length);
-    const needsMissing = d => { const t = d.text || ''; return !!((d.monsters || /monster/i.test(t)) && !g.uses.monsters || /madness/i.test(t) && !g.uses.madness || /treasure/i.test(t) && !g.uses.treasure || /\btitans?\b/i.test(t) && !hasTitan); };
-    const baseIds = Object.keys(BASES).filter(id => BASES[id] && (opts.ownBasesOnly ? (!BASES[id].faction || inPlay.has(BASES[id].faction)) : !needsMissing(BASES[id])));   // ownBasesOnly: legacy pool (only the scripted tests use it, so their seeds stay stable)
+    /* every base in the game is in the pool, whoever's factions are playing; a base that needs monsters / Madness / treasure gets those decks added when it comes into play */
+    const baseIds = Object.keys(BASES).filter(id => BASES[id] && (opts.ownBasesOnly ? (!BASES[id].faction || inPlay.has(BASES[id].faction)) : true));   // ownBasesOnly: legacy pool (only the scripted tests use it, so their seeds stay stable)
     g.baseDeck = g.shuffle(baseIds.map(id => BASES[id]));
     for (let i = 0; i < N + 1; i++) { const nb = newBase(drawBaseDef()); if (nb) g.bases.push(nb); }
     for (const pl of g.players) g.draw(pl.idx, 5);
@@ -1277,6 +1282,42 @@ function createGame(opts) {
 const api = { createGame, FACTIONS, CARDS, BASES, faction: registerFaction, M, A, B };
 if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.SmashUp = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
+
+/* Shared helpers for the Marvel and Disney factions (WIP). "Characters" are minions; "base modifiers" are actions played on a base; "character modifiers" are actions played on a minion. */
+SmashUp.MD = (() => {
+  const isMin = c => c.def.type === 'minion' || c.def.type === 'fusion';
+  const isAct = c => c.def.type === 'action' || c.def.type === 'fusion';
+  const pump = (m, n) => { m.temp.push({ amt: n, until: 'end' }); };
+  const act = (g, a) => g.src.action(a.controller, a);
+  /* every action currently attached to a minion or a base (modifiers) */
+  const mods = g => g.bases.flatMap(b => [...b.actions, ...b.minions.flatMap(m => m.attached)]);
+  const modsOf = (g, p) => mods(g).filter(a => a.controller === p);
+  const modsOn = (b) => [...b.actions, ...b.minions.flatMap(m => m.attached)];
+  const baseMods = b => [...b.actions];
+  const charMods = m => [...m.attached];
+  const isBaseMod = a => !!a.onBase, isCharMod = a => !!a.onMinion;
+  /* move a modifier you control to another host of the same kind */
+  function transfer(g, a, dest) {
+    if (a.onBase) { g.rm(a.onBase.actions, a); a.onBase = dest; dest.actions.push(a); }
+    else if (a.onMinion) { g.rm(a.onMinion.attached, a); a.onMinion = dest; dest.attached.push(a); }
+    g.log(`${a.def.name} moves to ${dest.def ? dest.def.name : '?'}.`); }
+  /* search the deck and/or discard for a card; returns it (in hand) or null */
+  async function search(g, p, filter, prompt, o = {}) {
+    const pl = g.players[p]; const cands = [...(o.deck === false ? [] : pl.deck.filter(filter)), ...(o.discard === false ? [] : pl.discard.filter(filter))];
+    const searched = pl.deck.length > 0 && o.deck !== false;
+    const c = cands.length ? await g.pickCards(p, cands, prompt, { optional: o.optional !== false, reveal: o.reveal === false ? null : cands }) : null;
+    if (c) { if (!g.rm(pl.deck, c)) g.rm(pl.discard, c); if (o.to === 'play') { /* caller plays it */ } else pl.hand.push(c); g.log(`${g.pname(p)} finds ${c.def.name}.`); }
+    if (searched) g.shuffleDeck(p);
+    return c || null; }
+  const topN = (g, p, n) => g.takeTop(p, n);
+  /* take a card from the discard pile to hand */
+  function discardToHand(g, p, c) { const pl = g.players[p]; if (g.rm(pl.discard, c)) { pl.hand.push(c); g.log(`${g.pname(p)} puts ${c.def.name} into their hand.`); return true; } return false; }
+  function shuffleIntoDeck(g, p, cards) { const pl = g.players[p]; for (const c of cards) if (g.rm(pl.discard, c)) pl.deck.push(c); g.shuffleDeck(p); }
+  const named = (a, id) => a && a.def.id === id;
+  const mineHere = (g, m) => m.base ? m.base.minions.filter(x => x.controller === m.controller) : [];
+  const countActionsThisTurn = (g, p) => { const e = (g.turn.played || []).filter(x => x.p === p).length; return e; };
+  return { isMin, isAct, pump, act, mods, modsOf, modsOn, baseMods, charMods, isBaseMod, isCharMod, transfer, search, topN, discardToHand, shuffleIntoDeck, named, mineHere, countActionsThisTurn };
+})();
 
 /* The Monster Deck (Munchkin). Monsters are minions with faction 'monster'; they are played off the top of the monster deck by card effects, are uncontrolled, add their power to the base's breakpoint, and pay out treasure when destroyed. */
 SmashUp.faction("monster", { name: "Monster Deck", set: "Special decks", color: "#8a6a3a", blurb: "", hidden: true, uses: [] }, F => {
@@ -2060,6 +2101,80 @@ SmashUp.faction("astroknights", { name: "Astroknights", set: "Cease and Desist",
   F.base("no_moon", "No-Moon", 25, [5, 3, 3], "Before this base scores, destroy a random other base (replace it normally).", {
     on: { beforeScore: async (g, b, ev) => { if (ev.b !== b) return; const others = g.bases.filter(x => x !== b); if (!others.length) return;
       const t = others[Math.floor(g.rand() * others.length)]; g.log(`No-Moon destroys ${t.def.name}!`); await g.destroyBase(t); } } });
+});
+
+/* Avengers — Smash Up: Marvel. WIP: card text paraphrased from the SmashUp wiki, no card art. Characters = minions, modifiers = actions played on a base or character. */
+SmashUp.faction("avengers", { name: "Avengers", set: "Smash Up: Marvel", color: "#b3303b", blurb: "Six mighty heroes whose different skills can handle any situation.", wip: true, uses: [] }, F => {
+  const MD = SmashUp.MD, isThor = m => m && m.def.id === 'avengers:thor', isCap = m => m && m.def.id === 'avengers:captain_america';
+
+  F.minion("black_widow", "Black Widow", 5, 1, "You may destroy a character here of power 5 or less.", {
+    onPlay: async (g, m) => { const p = m.controller, src = g.src.ability(m);
+      const t = await g.pickMinion(p, m.base.minions.filter(x => x !== m && g.powerOf(x) <= 5), 'Black Widow: destroy a character here of power 5 or less?', { optional: true, src }); if (t) await g.destroy(t, src); } });
+  F.minion("captain_america", "Captain America", 5, 1, "Talent: Give each of your other characters here +1 power until the end of the turn.", {
+    talent: { can: (g, m) => MD.mineHere(g, m).some(x => x !== m), run: async (g, m) => { for (const x of MD.mineHere(g, m)) if (x !== m) MD.pump(x, 1); g.log('Captain America rallies the team: +1 power.'); } } });
+  F.minion("hawkeye", "Hawkeye", 5, 1, "Draw three cards. Discard two cards.", {
+    onPlay: async (g, m) => { const p = m.controller, pl = g.players[p]; g.draw(p, 3);
+      for (let i = 0; i < 2 && pl.hand.length; i++) { const c = await g.pickCards(p, pl.hand, `Hawkeye: discard a card (${i + 1}/2)`, {}); if (c) g.discardCards(p, [c], 'hand'); } } });
+  F.minion("hulk", "Hulk", 5, 1, "Talent: This character gains +2 power until the end of the turn.", {
+    talent: { can: () => true, run: async (g, m) => { MD.pump(m, 2); g.log('Hulk gets angrier: +2 power.'); } } });
+  F.minion("iron_man", "Iron Man", 5, 1, "Talent: Move this character and up to one other of your characters here to another base.", {
+    talent: { can: (g, m) => g.bases.some(b => b !== m.base && g.canMoveTo(m, b, g.src.ability(m))),
+      run: async (g, m) => { const p = m.controller, src = g.src.ability(m), from = m.base;
+        const d = await g.pickBase(p, g.bases.filter(b => b !== from && g.canMoveTo(m, b, src)), 'Iron Man: move to which base?', { cancel: true }); if (!d) return;
+        const others = from.minions.filter(x => x !== m && x.controller === p && g.canMoveTo(x, d, src));
+        const o = others.length ? await g.pickMinion(p, others, 'Iron Man: bring another of your characters along?', { optional: true, src }) : null;
+        await g.move(m, d, src); if (o && o.base === from) await g.move(o, d, src); } } });
+  F.minion("thor", "Thor", 5, 1, "Search your deck and/or discard pile for Mjolnir, reveal it, and draw it. Shuffle your deck.", {
+    onPlay: async (g, m) => { await MD.search(g, m.controller, c => c.def.id === 'avengers:mjolnir', 'Thor: draw Mjolnir?'); } });
+
+  F.action("avengers_assemble", "Avengers Assemble", 2, "Shuffle up to two characters from your discard pile into your deck.", {
+    play: async (g, p) => { const pl = g.players[p]; const cs = await g.pickCards(p, pl.discard.filter(MD.isMin), 'Avengers Assemble: shuffle up to two characters into your deck', { multi: true, optional: true });
+      const pick = (cs || []).slice(0, 2); if (pick.length) { MD.shuffleIntoDeck(g, p, pick); g.log(`${g.pname(p)} shuffles ${pick.map(c => c.def.name).join(' and ')} into their deck.`); } } });
+  F.action("caps_shield", "Cap's Shield", 1, "Play on a character. Ongoing: Your characters here are not affected by other players' actions. If this is on Captain America, those characters also have +1 power.", { target: 'minion',
+    f: { canAffect: (g, a, { m, src }) => { if (!a.onMinion || !a.onMinion.base || m.base !== a.onMinion.base || m.controller !== a.controller) return; return src && src.kind === 'action' && src.player !== a.controller ? false : undefined; },
+      power: (g, a, m) => a.onMinion && isCap(a.onMinion) && a.onMinion.base && m.base === a.onMinion.base && m.controller === a.controller ? 1 : 0 } });
+  F.action("hawkeyes_arrows", "Hawkeye's Arrows", 1, "Reveal cards from your deck until you reveal two actions. Put them into your hand and shuffle the rest of the revealed cards back into your deck.", {
+    play: async (g, p) => { const pl = g.players[p], got = [], rest = [];
+      while (got.length < 2 && pl.deck.length) { const c = pl.deck.pop(); (MD.isAct(c) ? got : rest).push(c); }
+      pl.hand.push(...got); pl.deck.push(...rest); g.shuffleDeck(p); g.log(`${g.pname(p)} reveals ${got.length ? got.map(c => c.def.name).join(' and ') : 'no actions'}${rest.length ? ` (and ${rest.length} other card${rest.length > 1 ? 's' : ''})` : ''}.`); } });
+  F.action("hulk_smash", "Hulk Smash", 1, "Choose a base. Destroy any number of base modifiers on it. If you have Hulk there, you may destroy the base and replace it with the top base card.", {
+    play: async (g, p, card) => { const src = g.src.action(p, card); const b = await g.pickBase(p, g.bases, 'Hulk Smash: choose a base'); if (!b) return;
+      const ms = b.actions.filter(a => a !== card); const cs = ms.length ? await g.pickCards(p, ms, 'Hulk Smash: destroy which base modifiers?', { multi: true, optional: true, reveal: ms }) : [];
+      for (const a of cs || []) await g.destroyAction(a, src);
+      if (b.minions.some(m => m.controller === p && m.def.id === 'avengers:hulk') && g.bases.includes(b) && await g.yesno(p, `Hulk Smash: destroy ${b.def.name} and replace it?`)) await g.destroyBase(b); } });
+  F.action("jarvis", "J.A.R.V.I.S.", 1, "Play on a base. Talent: Draw a card, then discard a card.", { target: 'base',
+    talent: { can: (g, a) => true, run: async (g, a) => { const p = a.controller, pl = g.players[p]; g.draw(p, 1); if (pl.hand.length) { const c = await g.pickCards(p, pl.hand, 'J.A.R.V.I.S.: discard a card', {}); if (c) g.discardCards(p, [c], 'hand'); } } } });
+  F.action("mjolnir", "Mjolnir", 1, "Play on a character. Ongoing: If this is on Thor, he has +2 power. Otherwise this character has -2 power.", { target: 'minion',
+    f: { power: (g, a, m) => m === a.onMinion ? (isThor(m) ? 2 : -2) : 0 } });
+  F.action("modular_tech", "Modular Tech", 1, "Move one of your modifiers from one character to another character, or from one base to another base. Then play an extra action.", {
+    play: async (g, p, card) => { const src = g.src.action(p, card);
+      const mine = MD.modsOf(g, p).filter(a => a !== card && ((a.onMinion && g.allMinions().some(m => m !== a.onMinion)) || (a.onBase && g.bases.length > 1)));
+      const a = mine.length ? await g.pickCards(p, mine, 'Modular Tech: move which of your modifiers?', { optional: true }) : null;
+      if (a) { let d; if (a.onMinion) d = await g.pickMinion(p, g.allMinions().filter(m => m !== a.onMinion), 'Move it to which character?', { src }); else d = await g.pickBase(p, g.bases.filter(b => b !== a.onBase), 'Move it to which base?'); if (d) MD.transfer(g, a, d); }
+      await g.extraAction(p); } });
+  F.action("repulsor_boots", "Repulsor Boots", 1, "Move one of your characters to another base. Special: Before a base scores, you may play this to move Iron Man instead.", {
+    canAction: (g, p) => g.minionsOf(p).some(m => g.bases.some(b => b !== m.base && g.canMoveTo(m, b, { player: p, kind: 'action' }))),
+    play: async (g, p, card) => { const src = g.src.action(p, card); const m = await g.pickMinion(p, g.minionsOf(p).filter(x => g.bases.some(b => b !== x.base && g.canMoveTo(x, b, src))), 'Repulsor Boots: move which of your characters?', { src }); if (!m) return;
+      const d = await g.pickBase(p, g.bases.filter(b => b !== m.base && g.canMoveTo(m, b, src)), 'Move it where?'); if (d) await g.move(m, d, src); },
+    special: { when: 'beforeScore', zone: 'hand', can: (g, p) => g.minionsOf(p).some(m => m.def.id === 'avengers:iron_man') && !(g.sleep[p] && g.sleep[p].noActions) && g.bases.length > 1,
+      label: (g, self, b) => `Repulsor Boots: move Iron Man away from ${b.def.name}`,
+      run: async (g, p, self, b) => { const src = g.src.action(p, self); const m = g.minionsOf(p).find(x => x.def.id === 'avengers:iron_man'); if (!m) return; g.rm(g.players[p].hand, self);
+        const d = await g.pickBase(p, g.bases.filter(x => x !== m.base && g.canMoveTo(m, x, src)), 'Repulsor Boots: move Iron Man where?'); g.log(`${g.pname(p)} plays Repulsor Boots.`); if (d) await g.move(m, d, src); g.toDiscard(self); await g.announceSpecial(p, self, null); } } });
+  F.action("strategize", "Strategize", 2, "Look at the top four cards of your deck. Put two on top and the rest on the bottom, in any order.", {
+    play: async (g, p) => { const top = g.takeTop(p, 4); if (!top.length) return; const keep = [];
+      while (keep.length < 2 && top.length) { const c = await g.pickCards(p, top, `Strategize: keep which card on top? (${keep.length + 1}/2)`, { reveal: top }); const pick = c || top[0]; g.rm(top, pick); keep.push(pick); }
+      for (const c of top) g.players[p].deck.unshift(c);
+      if (keep.length) await g.orderOnTop(p, keep); } });
+  F.action("tactical_advantage", "Tactical Advantage", 1, "Choose a character to gain +3 power until the end of the turn.", { hits: true,
+    canAction: g => g.allMinions().length > 0,
+    play: async (g, p, card) => { const src = g.src.action(p, card); const m = await g.pickMinion(p, g.allMinions(), 'Tactical Advantage: +3 power to which character?', { src }); if (m) { card.flags.hits = [m]; MD.pump(m, 3); g.log(`${m.def.name} gets +3 power.`); } } });
+  F.action("thunder_and_lightning", "Thunder and Lightning", 1, "Destroy a character of power 3 or less.", {
+    canAction: g => g.allMinions().some(m => g.powerOf(m) <= 3),
+    play: async (g, p, card) => { const src = g.src.action(p, card); const m = await g.pickMinion(p, g.allMinions().filter(x => g.powerOf(x) <= 3), 'Thunder and Lightning: destroy which character?', { src }); if (m) await g.destroy(m, src); } });
+  F.action("widows_bite", "Widow's Bite", 1, "Special: Before a base scores, other players' characters there get -1 power until the end of the turn. If you have Black Widow there, she gets +2 power.", { specialOnly: true,
+    special: { when: 'beforeScore', zone: 'hand', can: (g, p, self, b) => b.minions.some(m => m.controller !== p) && !(g.sleep[p] && g.sleep[p].noActions),
+      label: (g, self, b) => `Widow's Bite: other characters at ${b.def.name} get -1 power`,
+      run: async (g, p, self, b) => { g.rm(g.players[p].hand, self); g.log(`${g.pname(p)} plays Widow's Bite.`); for (const m of b.minions) { if (m.controller !== p) m.temp.push({ amt: -1, until: 'end' }); else if (m.def.id === 'avengers:black_widow') MD.pump(m, 2); } g.toDiscard(self); await g.announceSpecial(p, self, null); } } });
 });
 
 /* Backtimers — Excellent Movies, Dudes!  (Stasis faction)
@@ -5458,6 +5573,40 @@ SmashUp.faction("knights_of_the_round_table", { name: "Knights of the Round Tabl
 
   F.base("round_table", "Round Table", 21, [4, 2, 1], "Each of your minions here with the same printed power as another one of your minions here has +1 power.", {
     f: { power: (g, b, m) => m.base === b && m.controller != null && b.minions.some(x => x !== m && x.controller === m.controller && x.def.power === m.def.power) ? 1 : 0 } });
+});
+
+/* Kree — Smash Up: Marvel. WIP: card text paraphrased from the SmashUp wiki, no card art. */
+SmashUp.faction("kree", { name: "Kree", set: "Smash Up: Marvel", color: "#2f6fb0", blurb: "A proud warrior empire that wins by chaining action after action.", wip: true, uses: [] }, F => {
+  const MD = SmashUp.MD;
+  const actionsThisTurn = (g, p) => MD.countActionsThisTurn(g, p);
+
+  F.minion("supreme_intelligence", "Supreme Intelligence", 5, 1, "Ongoing: After you play an action, one of your other characters gains +1 power until the end of the turn.", {
+    on: { actionPlayed: async (g, m, ev) => { if (ev.p !== m.controller || !m.base) return; const src = g.src.ability(m);
+      const t = await g.pickMinion(m.controller, g.minionsOf(m.controller).filter(x => x !== m), 'Supreme Intelligence: +1 power to which of your other characters?', { optional: true, src }); if (t) { MD.pump(t, 1); g.log(`${t.def.name} gets +1 power.`); } } } });
+  F.minion("minn_erva", "Minn-Erva", 4, 2, "Draw two cards.", { onPlay: async (g, m) => { g.draw(m.controller, 2); } });
+  F.minion("ronan_the_accuser", "Ronan the Accuser", 3, 3, "You may play an extra action.", { onPlay: async (g, m) => { await g.extraAction(m.controller); } });
+  F.minion("kree_sentry", "Kree Sentry", 2, 4, "Ongoing: This character has +2 power if you have played two or more actions this turn.", {
+    f: { power: (g, self, m) => m === self && g.current === m.controller && actionsThisTurn(g, m.controller) >= 2 ? 2 : 0 } });
+
+  F.action("battle_rage", "Battle Rage", 2, "One of your characters gains +2 power until the end of the turn. Draw a card.", { hits: true,
+    canAction: (g, p) => g.minionsOf(p).length > 0,
+    play: async (g, p, card) => { const src = g.src.action(p, card); const m = await g.pickMinion(p, g.minionsOf(p), 'Battle Rage: +2 power to which of your characters?', { src }); if (m) { card.flags.hits = [m]; MD.pump(m, 2); g.log(`${m.def.name} gets +2 power.`); } g.draw(p, 1); } });
+  F.action("call_for_backup", "Call for Backup", 1, "Draw two cards.", { play: async (g, p) => { g.draw(p, 2); } });
+  F.action("it_begins", "It Begins", 1, "One of your characters gains +1 power until the end of the turn. Draw a card. You may play an extra action.", { hits: true,
+    play: async (g, p, card) => { const src = g.src.action(p, card); const m = await g.pickMinion(p, g.minionsOf(p), 'It Begins: +1 power to which of your characters?', { src }); if (m) { card.flags.hits = [m]; MD.pump(m, 1); g.log(`${m.def.name} gets +1 power.`); } g.draw(p, 1); await g.extraAction(p); } });
+  F.action("prepare_to_engage", "Prepare to Engage", 1, "Reveal the top five cards of your deck. Put up to two revealed actions into your hand and shuffle the rest back into your deck.", {
+    play: async (g, p) => { const pl = g.players[p]; const top = []; for (let i = 0; i < 5 && pl.deck.length; i++) top.push(pl.deck.pop());
+      const acts = top.filter(MD.isAct); const cs = acts.length ? await g.pickCards(p, acts, 'Prepare to Engage: take up to two actions', { multi: true, optional: true, reveal: top }) : [];
+      const pick = (cs || []).slice(0, 2); for (const c of pick) { g.rm(top, c); pl.hand.push(c); }
+      pl.deck.push(...top); g.shuffleDeck(p); g.log(`${g.pname(p)} reveals ${top.length + pick.length} cards and keeps ${pick.length}.`); } });
+  F.action("proven_methods", "Proven Methods", 1, "Put up to two actions from your discard pile on top of your deck, in any order.", {
+    play: async (g, p) => { const pl = g.players[p]; const cs = await g.pickCards(p, pl.discard.filter(MD.isAct), 'Proven Methods: put up to two actions on top of your deck', { multi: true, optional: true });
+      const pick = (cs || []).slice(0, 2); for (const c of pick) g.rm(pl.discard, c); if (pick.length) { await g.orderOnTop(p, pick); g.log(`${g.pname(p)} puts ${pick.length} action${pick.length > 1 ? 's' : ''} on top of their deck.`); } } });
+  F.action("relentless_attack", "Relentless Attack", 1, "Play on a character. Talent: Play an extra action.", { target: 'minion',
+    talent: { can: (g, a) => !!a.onMinion && g.hasPlayableAction(a.controller), run: async (g, a) => { await g.extraAction(a.controller); } } });
+  F.action("righteous_fury", "Righteous Fury", 2, "Play on a character. Ongoing: This character has +3 power.", { target: 'minion', pmod: 3 });
+  F.action("speed_up", "Speed Up", 1, "Play up to two extra actions.", {
+    play: async (g, p) => { for (let i = 0; i < 2; i++) { if (!(await g.extraAction(p, { prompt: `Speed Up: play an extra action (${i + 1}/2)` }))) break; } } });
 });
 
 /* Kung Fu Fighters — That '70s Expansion. +1 power counter manipulation, plus the Sifu titan. */
@@ -9152,6 +9301,71 @@ SmashUp.faction("teens", { name: "Teens", set: "Promos & Standalone", color: "#c
       const x = await g.pickMinion(p, cs, 'Montridge High: place a +1 counter on which minion?', { src: g.src.base(p) }); if (x) await g.addCounters(x, 1, g.src.base(p)); } } });
 });
 
+/* The Lion King — Smash Up: Disney. WIP: card text paraphrased from the SmashUp wiki, no card art. */
+SmashUp.faction("the_lion_king", { name: "The Lion King", set: "Smash Up: Disney", color: "#c9822b", blurb: "The circle of life: your fallen heroes make the survivors stronger.", wip: true, uses: [] }, F => {
+  const MD = SmashUp.MD;
+  const disc = (g, p, id) => g.players[p].discard.some(c => c.def.id === 'the_lion_king:' + id);
+  const mufasaOut = (g, p) => disc(g, p, 'mufasa');
+
+  F.minion("mufasa", "Mufasa", 6, 1, "When this character is destroyed or scored from play, place up to four +1 power counters on your characters.", {
+    on: { left: async (g, m, snap) => { if (snap.why !== 'destroy' && snap.why !== 'scored') return; const p = snap.controller; if (p == null) return; const src = g.src.ability(m);
+      for (let i = 0; i < 4; i++) { const t = await g.pickMinion(p, g.minionsOf(p), `Mufasa: place a +1 power counter (${i + 1}/4)`, { optional: true, src }); if (!t) break; await g.addCounters(t, 1, src); } } } });
+  F.minion("nala", "Nala", 4, 1, "Ongoing: This character has +2 power while a Lion Cub is in your discard pile.", {
+    f: { power: (g, self, m) => m === self && m.controller != null && disc(g, m.controller, 'lion_cub') ? 2 : 0 } });
+  F.minion("simba", "Simba", 4, 1, "Ongoing: +2 power while Mufasa is in your discard pile. When this character leaves play, you may shuffle it into your deck.", {
+    f: { power: (g, self, m) => m === self && m.controller != null && mufasaOut(g, m.controller) ? 2 : 0 },
+    on: { left: async (g, m, snap) => { const p = snap.owner; if (p == null || snap.to !== 'discard') return; const pl = g.players[p]; if (!pl.discard.includes(snap.card)) return;
+      if (await g.yesno(p, 'Simba: shuffle him into your deck?')) { MD.shuffleIntoDeck(g, p, [snap.card]); g.log('Simba shuffles himself into the deck.'); } } } });
+  F.minion("rafiki", "Rafiki", 3, 1, "Talent: Put a character of power 2 or less from your discard pile into your hand.", {
+    talent: { can: (g, m) => g.players[m.controller].discard.some(c => MD.isMin(c) && c.def.power <= 2),
+      run: async (g, m) => { const p = m.controller; const c = await g.pickCards(p, g.players[p].discard.filter(c => MD.isMin(c) && c.def.power <= 2), 'Rafiki: take which character into your hand?', { optional: true }); if (c) MD.discardToHand(g, p, c); } } });
+  F.minion("timon_and_pumbaa", "Timon and Pumbaa", 3, 1, "Talent: Put a card from your discard pile on the bottom of your deck. If it is Hakuna Matata, put it into your hand instead.", {
+    talent: { can: (g, m) => g.players[m.controller].discard.length > 0,
+      run: async (g, m) => { const p = m.controller, pl = g.players[p]; const c = await g.pickCards(p, pl.discard, 'Timon and Pumbaa: choose a card from your discard pile', { optional: true }); if (!c) return;
+        if (c.def.id === 'the_lion_king:hakuna_matata') MD.discardToHand(g, p, c); else if (g.rm(pl.discard, c)) { g.toDeckBottom(c); g.log(`${c.def.name} goes to the bottom of ${g.pname(p)}’s deck.`); } } } });
+  F.minion("zazu", "Zazu", 3, 1, "Talent: Give another of your characters +2 power until the end of the turn, or, if Mufasa is in your discard pile, draw a card.", {
+    talent: { can: (g, m) => g.minionsOf(m.controller).some(x => x !== m) || mufasaOut(g, m.controller),
+      run: async (g, m) => { const p = m.controller, src = g.src.ability(m); const others = g.minionsOf(p).filter(x => x !== m);
+        const ops = []; if (others.length) ops.push({ id: 'pow', label: 'Another of your characters gets +2 power' }); if (mufasaOut(g, p)) ops.push({ id: 'draw', label: 'Draw a card' });
+        const id = await g.pickOption(p, ops, 'Zazu'); if (id === 'draw') g.draw(p, 1); else if (id === 'pow') { const t = await g.pickMinion(p, others, 'Zazu: +2 power to which character?', { src }); if (t) { MD.pump(t, 2); g.log(`${t.def.name} gets +2 power.`); } } } } });
+  F.minion("lion_cub", "Lion Cub", 2, 4, "When this character leaves play, you may search your deck for a character of power 4 or less, draw it, and shuffle.", {
+    on: { left: async (g, m, snap) => { const p = snap.owner; if (p == null) return; const pl = g.players[p]; const cands = pl.deck.filter(c => MD.isMin(c) && c.def.power <= 4);
+      if (cands.length && await g.yesno(p, 'Lion Cub: search your deck for a character of power 4 or less?')) await MD.search(g, p, c => MD.isMin(c) && c.def.power <= 4, 'Lion Cub: draw which character?', { discard: false }); } } });
+
+  F.action("circle_of_life", "Circle of Life", 2, "Play on a character. When this leaves play, you may play another character of power 3 or less from your hand or discard pile as an extra character.", { target: 'minion',
+    onHostGone: async (g, a, snap) => { const p = a.owner; if (p == null) return; const pl = g.players[p];
+      const ok = c => MD.isMin(c) && c.def.power <= 3 && c !== snap.card; if (![...pl.hand, ...pl.discard].some(ok)) return;
+      const from = pl.hand.some(ok) && pl.discard.some(ok) ? await g.pickOption(p, [{ id: 'hand', label: 'From your hand' }, { id: 'discard', label: 'From your discard pile' }, { id: 'no', label: 'No thanks' }], 'Circle of Life: play another character of power 3 or less?') : (pl.hand.some(ok) ? 'hand' : 'discard');
+      if (from === 'no' || !from) return; await g.extraMinion(p, { from, filter: ok, optional: true, prompt: 'Circle of Life: play a character of power 3 or less' }); } });
+  F.action("hakuna_matata", "Hakuna Matata", 1, "Draw two cards. If Timon and Pumbaa is in your discard pile, put it into your hand.", {
+    play: async (g, p) => { g.draw(p, 2); const c = g.players[p].discard.find(x => x.def.id === 'the_lion_king:timon_and_pumbaa'); if (c) MD.discardToHand(g, p, c); } });
+  F.action("he_lives_in_you", "He Lives in You", 1, "Play on a base. Ongoing: Your characters here have +1 power, or +2 power if Mufasa is in your discard pile.", { target: 'base',
+    f: { power: (g, a, m) => a.onBase && m.base === a.onBase && m.controller === a.controller ? (mufasaOut(g, a.controller) ? 2 : 1) : 0 } });
+  F.action("hyenas_den", "Hyenas' Den", 1, "Play on a base. Talent: One of your characters here gains +2 power until the end of the turn. Special: After a base scores, if Mufasa is in your discard pile, you may move this to another base.", { target: 'base',
+    talent: { can: (g, a) => !!a.onBase && a.onBase.minions.some(m => m.controller === a.controller), run: async (g, a) => { const p = a.controller; const t = await g.pickMinion(p, a.onBase.minions.filter(m => m.controller === p), 'Hyenas’ Den: +2 power to which character?', { src: MD.act(g, a) }); if (t) { MD.pump(t, 2); g.log(`${t.def.name} gets +2 power.`); } } },
+    special: { when: 'afterScore', zone: 'play', can: (g, p, a, base) => a.controller === p && mufasaOut(g, p) && g.bases.some(b => b !== base && b !== a.onBase), label: 'Hyenas’ Den: move it to another base',
+      run: async (g, p, a, base) => { const d = await g.pickBase(p, g.bases.filter(b => b !== base && b !== a.onBase), 'Move Hyenas’ Den to which base?', { optional: true }); if (d && a.onBase) MD.transfer(g, a, d); } } });
+  F.action("just_cant_wait_to_be_king", "I Just Can't Wait to Be King", 1, "Place two +1 power counters on one of your characters, or four if Mufasa is in your discard pile.", { hits: true,
+    canAction: (g, p) => g.minionsOf(p).length > 0,
+    play: async (g, p, card) => { const src = g.src.action(p, card); const m = await g.pickMinion(p, g.minionsOf(p), 'I Just Can’t Wait to Be King: counters on which character?', { src }); if (m) { card.flags.hits = [m]; await g.addCounters(m, mufasaOut(g, p) ? 4 : 2, src); } } });
+  F.action("scar", "Scar", 1, "Destroy another player's character of power 5 or less, or destroy one of your characters to draw cards equal to its power.", {
+    canAction: (g, p) => g.allMinions().some(m => m.controller !== p && g.powerOf(m) <= 5) || g.minionsOf(p).length > 0,
+    play: async (g, p, card) => { const src = g.src.action(p, card); const foes = g.allMinions().filter(m => m.controller !== p && g.powerOf(m) <= 5 && !g.immune(m, src)), mine = g.minionsOf(p);
+      const ops = []; if (foes.length) ops.push({ id: 'kill', label: 'Destroy another player’s character of power 5 or less' }); if (mine.length) ops.push({ id: 'draw', label: 'Destroy one of your characters to draw cards equal to its power' });
+      const id = await g.pickOption(p, ops, 'Scar'); if (id === 'kill') { const t = await g.pickMinion(p, foes, 'Scar: destroy which character?', { src }); if (t) await g.destroy(t, src); }
+      else if (id === 'draw') { const t = await g.pickMinion(p, mine, 'Scar: destroy which of your characters?', { src }); if (t) { const n = Math.max(0, g.powerOf(t)); if (await g.destroy(t, src)) g.draw(p, n); } } } });
+  F.action("the_hyenas", "The Hyenas", 1, "Destroy a character of power 3 or less. If Mufasa is in your discard pile, draw a card and you may play an extra action.", {
+    canAction: g => g.allMinions().some(m => g.powerOf(m) <= 3),
+    play: async (g, p, card) => { const src = g.src.action(p, card); const t = await g.pickMinion(p, g.allMinions().filter(m => g.powerOf(m) <= 3), 'The Hyenas: destroy which character?', { src }); if (t) await g.destroy(t, src);
+      if (mufasaOut(g, p)) { g.draw(p, 1); await g.extraAction(p); } } });
+  F.action("wildebeest_stampede", "Wildebeest Stampede", 2, "Destroy one of your characters to search your deck for a character, shuffle, and play it as an extra character.", {
+    canAction: (g, p) => g.minionsOf(p).length > 0,
+    play: async (g, p, card) => { const src = g.src.action(p, card); const t = await g.pickMinion(p, g.minionsOf(p), 'Wildebeest Stampede: destroy which of your characters?', { optional: true, src }); if (!t) return;
+      if (!(await g.destroy(t, src))) return; const pl = g.players[p]; const cands = pl.deck.filter(MD.isMin); const searched = pl.deck.length > 0;
+      const c = cands.length ? await g.pickCards(p, cands, 'Wildebeest Stampede: play which character?', { optional: true, reveal: cands }) : null; if (c) g.rm(pl.deck, c); if (searched) g.shuffleDeck(p);
+      if (c) { const r = await g.extraMinion(p, { cards: [c], optional: false, prompt: `Play ${c.def.name} as an extra character` }); if (!r) pl.hand.push(c); } } });
+});
+
 /* Thieves — Munchkin. Treasure, stolen cards and cards you do not own. */
 SmashUp.faction("thieves", { name: "Thieves", set: "Munchkin", color: "#9246b8", blurb: "Keep your eyes on Munchkin Thieves at all times.", uses: ['monsters'] }, F => {
   const isMin = c => c.def.type === 'minion' || c.def.type === 'fusion';
@@ -10329,6 +10543,86 @@ SmashUp.faction("wraithrustlers", { name: "Wraithrustlers", set: "Excellent Movi
     on: { afterScore: async (g, b, ev) => { hook(g); for (const w of ev.winners) { const pl = g.players[w]; pl.wrHQ = (pl.wrHQ || 0) + 1; g.log(`${g.pname(w)} may play an extra action or minion on their next turn.`); } } } });
 });
 
+/* Wreck-It Ralph — Smash Up: Disney. WIP: card text paraphrased from the SmashUp wiki, no card art. Base modifiers (actions played on bases) are the theme. */
+SmashUp.faction("wreck_it_ralph", { name: "Wreck-It Ralph", set: "Smash Up: Disney", color: "#d4577b", blurb: "Arcade heroes and candy racers who break (and fix) the bases they stand on.", wip: true, uses: [] }, F => {
+  const MD = SmashUp.MD;
+  const isBM = c => MD.isAct(c) && c.def.target === 'base';
+  const untilMyNextTurn = (g, p, r0) => g.current !== p || g.round === r0;
+  const act = (g, a) => g.src.action(a.controller, a);
+
+  F.minion("wreck_it_ralph", "Wreck-It Ralph", 5, 1, "Talent: Either play a base modifier at this base as an extra action, or destroy a base modifier at this base.", {
+    talent: { can: (g, m) => !!m.base && (m.base.actions.length > 0 || g.players[m.controller].hand.some(c => isBM(c) && g.canPlayAction(m.controller, c))),
+      run: async (g, m) => { const p = m.controller, b = m.base, src = g.src.ability(m), pl = g.players[p];
+        const play = pl.hand.filter(c => isBM(c) && g.canPlayAction(p, c)); const ops = [];
+        if (play.length) ops.push({ id: 'play', label: 'Play a base modifier here as an extra action' }); if (b.actions.length) ops.push({ id: 'destroy', label: 'Destroy a base modifier here' });
+        const id = await g.pickOption(p, ops, 'Wreck-It Ralph'); if (id === 'play') { const c = await g.pickCards(p, play, 'Play which base modifier here?', { optional: true }); if (c) { g.rm(pl.hand, c); await g.playAction(p, c, { extra: true, from: 'hand', target: b }); } }
+        else if (id === 'destroy') { const a = await g.pickCards(p, b.actions, 'Destroy which base modifier?', { optional: true }); if (a) await g.destroyAction(a, src); } } } });
+  F.minion("fix_it_felix_jr", "Fix-It Felix Jr.", 4, 1, "Put a base modifier from your discard pile into your hand. Talent: Place a base modifier at this base on top of its owner's deck.", {
+    onPlay: async (g, m) => { const p = m.controller, pl = g.players[p]; const c = await g.pickCards(p, pl.discard.filter(isBM), 'Fix-It Felix Jr.: take a base modifier into your hand', { optional: true }); if (c) MD.discardToHand(g, p, c); },
+    talent: { can: (g, m) => !!m.base && m.base.actions.length > 0,
+      run: async (g, m) => { const p = m.controller, src = g.src.ability(m); const a = await g.pickCards(p, m.base.actions, 'Fix-It Felix: place which base modifier on top of its owner’s deck?', { optional: true }); if (!a) return;
+        if (g.immuneAction && g.immuneAction(a, src)) { g.log(`${a.def.name} is protected.`); return; } for (const c of (a.stored || [])) g.toDiscard(c); a.stored = []; g.detachAction(a); g.toDeckTop(a); g.log(`${a.def.name} goes on top of its owner’s deck.`); } } });
+  F.minion("vanellope_von_schweetz", "Vanellope von Schweetz", 3, 1, "Talent: Move this character to another base and place a +1 power counter on it.", {
+    talent: { can: (g, m) => g.bases.some(b => b !== m.base && g.canMoveTo(m, b, g.src.ability(m))),
+      run: async (g, m) => { const p = m.controller, src = g.src.ability(m); const d = await g.pickBase(p, g.bases.filter(b => b !== m.base && g.canMoveTo(m, b, src)), 'Vanellope: move to which base?', { cancel: true }); if (!d) return; if (await g.move(m, d, src) && m.base) await g.addCounters(m, 1, src); } } });
+  F.minion("sergeant_calhoun", "Sergeant Calhoun", 3, 3, "Talent: If you have a base modifier at this base, your other characters here gain +1 power until the end of the turn.", {
+    talent: { can: (g, m) => !!m.base && m.base.actions.some(a => a.controller === m.controller), run: async (g, m) => { for (const x of MD.mineHere(g, m)) if (x !== m) MD.pump(x, 1); g.log('Sergeant Calhoun: +1 power for your other characters here.'); } } });
+  F.minion("sugar_rush_racer", "Sugar Rush Racer", 2, 4, "Ongoing: After you play a base modifier, you may move this character to or from that base. If you do, it gains +1 power until the end of the turn.", {
+    on: { actionPlayed: async (g, m, ev) => { if (ev.p !== m.controller || !m.base || !ev.target || !ev.card.onBase || ev.card.def.target !== 'base') return; const p = m.controller, src = g.src.ability(m), tb = ev.card.onBase;
+      let d = null; if (m.base !== tb) { if (!g.canMoveTo(m, tb, src) || !(await g.yesno(p, `Sugar Rush Racer: move to ${tb.def.name}? (+1 power)`))) return; d = tb; }
+      else { const ds = g.bases.filter(b => b !== tb && g.canMoveTo(m, b, src)); if (!ds.length) return; d = await g.pickBase(p, ds, `Sugar Rush Racer: move away from ${tb.def.name}? (+1 power)`, { optional: true }); if (!d) return; }
+      if (await g.move(m, d, src) && m.base) { MD.pump(m, 1); g.log('Sugar Rush Racer speeds up: +1 power.'); } } } });
+
+  F.action("cy_bug_infestation", "Cy-Bug Infestation", 1, "Play on a base. Talent: Destroy this card and this base. Starting with the player to your left, each player chooses a base and moves all their cards here to it. Then replace the base normally.", { target: 'base',
+    talent: { can: (g, a) => !!a.onBase && g.bases.length > 1, run: async (g, a) => { const b = a.onBase, p = a.controller, src = act(g, a); if (!b) return; g.log('Cy-Bug Infestation spreads!');
+      const mine = a; const order = g.order((p + 1) % g.players.length); await g.destroyAction(mine, null);
+      for (const q of order) { const ms = b.minions.filter(m => m.controller === q), as = b.actions.filter(x => x.controller === q); if (!ms.length && !as.length) continue;
+        const d = await g.pickBase(q, g.bases.filter(x => x !== b), `Cy-Bug Infestation: ${g.pname(q)} chooses where to move their cards from ${b.def.name}`); if (!d) continue;
+        for (const m of ms) if (m.base === b) await g.move(m, d, { player: q, kind: 'action' }, true); for (const x of as) if (x.onBase === b) MD.transfer(g, x, d); }
+      if (g.bases.includes(b)) await g.destroyBase(b); } } });
+  F.action("escape_pod", "Escape Pod", 2, "Move up to two of your cards from one base to another base. Special: Before a base scores, you may play this; if you do, move one of your cards from the scoring base instead.", {
+    canAction: g => g.bases.length > 1,
+    play: async (g, p, card) => { await podMove(g, p, card, null, 2); },
+    special: { when: 'beforeScore', zone: 'hand', can: (g, p, self, b) => g.bases.length > 1 && !(g.sleep[p] && g.sleep[p].noActions) && (b.minions.some(m => m.controller === p) || b.actions.some(a => a.controller === p)),
+      label: (g, self, b) => `Escape Pod: move one of your cards from ${b.def.name}`,
+      run: async (g, p, self, b) => { g.rm(g.players[p].hand, self); g.log(`${g.pname(p)} plays Escape Pod.`); await podMove(g, p, self, b, 1); g.toDiscard(self); await g.announceSpecial(p, self, null); } } });
+  async function podMove(g, p, card, fromBase, n) { const src = g.src.action(p, card);
+    const has = b => b.minions.some(m => m.controller === p) || b.actions.some(a => a.controller === p);
+    const from = fromBase || await g.pickBase(p, g.bases.filter(has), 'Escape Pod: move your cards away from which base?'); if (!from) return;
+    const d = await g.pickBase(p, g.bases.filter(b => b !== from), 'Escape Pod: move them to which base?'); if (!d) return;
+    const cands = [...from.minions.filter(m => m.controller === p && g.canMoveTo(m, d, src)), ...from.actions.filter(a => a.controller === p)];
+    const picks = []; let pool = cands.slice();
+    while (picks.length < n && pool.length) { const c = await g.pickCards(p, pool.map(x => x.card || x), `Escape Pod: move a card (${picks.length + 1}/${n})`, { optional: true }); if (!c) break; const o = pool.find(x => (x.card || x) === c); picks.push(o); pool = pool.filter(x => x !== o); }
+    for (const o of picks) { if (o.base !== undefined && o.def && (o.def.type === 'minion' || o.def.type === 'fusion') && o.attached) await g.move(o, d, src); else MD.transfer(g, o, d); } }
+  F.action("im_gonna_wreck_it", "I'm Gonna Wreck It!", 2, "Play on a base. Ongoing: This base's breakpoint is reduced by 3. Talent: This base's abilities are cancelled until the start of your next turn.", { target: 'base',
+    f: { breakpoint: (g, a, ctx) => a.onBase && ctx.b === a.onBase ? -3 : 0 },
+    talent: { can: (g, a) => !!a.onBase && a.onBase.cancelUntil == null, run: async (g, a) => { a.onBase.cancelUntil = a.controller; g.log(`${a.onBase.def.name}'s abilities are cancelled until the start of ${g.pname(a.controller)}’s next turn.`); } } });
+  F.action("kart_bakery", "Kart Bakery", 1, "Play on a base. Talent: If you have a character here, draw a card.", { target: 'base',
+    talent: { can: (g, a) => !!a.onBase && a.onBase.minions.some(m => m.controller === a.controller), run: async (g, a) => { g.draw(a.controller, 1); } } });
+  F.action("king_candy", "King Candy", 1, "Play on a base. Talent: You may move this card to another base. Choose a character at this base. Until the start of your next turn, the abilities of modifiers on it are cancelled and +1 power counters on it do not add to its power.", { target: 'base',
+    talent: { can: (g, a) => !!a.onBase, run: async (g, a) => { const p = a.controller; if (g.bases.length > 1 && await g.yesno(p, 'King Candy: move this card to another base?')) { const d = await g.pickBase(p, g.bases.filter(b => b !== a.onBase), 'Move King Candy where?'); if (d) MD.transfer(g, a, d); }
+        const m = await g.pickMinion(p, a.onBase.minions, 'King Candy: choose a character here', { optional: true, src: act(g, a) }); if (m) { a.flags.kc = { m, r: g.round, p }; g.log(`${m.def.name} loses its modifiers and counters until ${g.pname(p)}’s next turn.`); } } },
+    f: { power: (g, a, m) => { const k = a.flags && a.flags.kc; if (!k || k.m !== m || !m.base || !untilMyNextTurn(g, k.p, k.r)) return 0; return -(m.counters || 0) - m.attached.reduce((s, x) => s + (x.def.pmod || 0), 0); } } });
+  F.action("mints_eruption", "Mints Eruption", 1, "Choose a base and swap it with a base in the discard pile. All cards from the original base remain.", {
+    canAction: g => g.baseDiscard.length > 0,
+    play: async (g, p) => { const b = await g.pickBase(p, g.bases, 'Mints Eruption: swap which base?'); if (!b || !g.baseDiscard.length) return;
+      const i = await g.pickOption(p, g.baseDiscard.map((d, k) => ({ id: String(k), label: `${d.name} (breakpoint ${d.bp}, ${d.vp.join('/')})` })), 'Swap it with which base from the discard pile?'); if (i == null) return;
+      const [nd] = g.baseDiscard.splice(+i, 1); const old = await g.swapBaseDef(b, nd); g.baseDiscard.push(old); } });
+  F.action("research_lab_beacon", "Research Lab Beacon", 1, "Play on a base. Ongoing: If there are four or more characters here, destroy this card. Talent: Name a faction and move all characters of that faction here.", { target: 'base',
+    on: { minionPlayed: async (g, a, ev) => { if (a.onBase && a.onBase.minions.length >= 4) { g.log('Research Lab Beacon overloads and is destroyed.'); await g.destroyAction(a, null); } },
+      minionMoved: async (g, a, ev) => { if (a.onBase && a.onBase.minions.length >= 4) { g.log('Research Lab Beacon overloads and is destroyed.'); await g.destroyAction(a, null); } } },
+    talent: { can: (g, a) => !!a.onBase && g.allMinions().some(m => m.base !== a.onBase), run: async (g, a) => { const p = a.controller, b = a.onBase, src = act(g, a);
+      const fs = [...new Set(g.allMinions().filter(m => m.base !== b).map(m => m.def.faction))].filter(f => f && f !== 'monster'); if (!fs.length) return;
+      const f = await g.pickOption(p, fs.map(id => ({ id, label: (SmashUp.FACTIONS[id] && SmashUp.FACTIONS[id].name) || id })), 'Research Lab Beacon: name a faction'); if (!f) return;
+      for (const m of g.allMinions().filter(x => x.def.faction === f && x.base !== b)) await g.move(m, b, src); } } });
+  F.action("sugar_rush", "Sugar Rush", 1, "Play on a base. Talent: Move up to two of your characters from here to another base, or from another base to here. Each gains +1 power until the end of the turn.", { target: 'base',
+    talent: { can: (g, a) => !!a.onBase && g.bases.length > 1, run: async (g, a) => { const p = a.controller, b = a.onBase, src = act(g, a);
+      const dir = await g.pickOption(p, [{ id: 'from', label: 'Move up to two of your characters from here to another base' }, { id: 'to', label: 'Move up to two of your characters from another base to here' }], 'Sugar Rush');
+      let ms, d; if (dir === 'from') { d = await g.pickBase(p, g.bases.filter(x => x !== b), 'Move them to which base?'); if (!d) return; ms = await g.pickMinions(p, b.minions.filter(m => m.controller === p && g.canMoveTo(m, d, src)), 'Sugar Rush: move a character', { max: 2, src }); }
+      else { const from = await g.pickBase(p, g.bases.filter(x => x !== b && x.minions.some(m => m.controller === p)), 'Move your characters from which base?'); if (!from) return; d = b; ms = await g.pickMinions(p, from.minions.filter(m => m.controller === p && g.canMoveTo(m, b, src)), 'Sugar Rush: move a character', { max: 2, src }); }
+      for (const m of ms) if (await g.move(m, d, src) && m.base) MD.pump(m, 1); } } });
+});
+
 /* Smash Up computer players. Works in Node and in the browser.
    Answers are in the same wire format a human click produces (uids, option ids, booleans). */
 (function (root) {
@@ -10544,6 +10838,7 @@ const fkeys = () => Object.keys(FACTIONS).filter(k => !FACTIONS[k].hidden);
 const fname = id => (FACTIONS[id] && FACTIONS[id].name) || (META.byId[id] && META.byId[id].name) || id;
 const fcol = id => (FACTIONS[id] && FACTIONS[id].color) || (META.byId[id] && META.byId[id].color) || '#8a8f9c';
 const fset = id => (META.byId[id] && META.byId[id].set) || 'Core';
+const wipTag = id => FACTIONS[id] && FACTIONS[id].wip ? ' <em class="wip">WIP but playable</em>' : '';
 const fblurb = id => (FACTIONS[id] && FACTIONS[id].blurb) || (META.byId[id] && META.byId[id].blurb) || '';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -10555,7 +10850,7 @@ const SPECIAL_DECKS = ['madness', 'monster', 'treasure'];
 const artState = {};
 const metaP = (async () => { try {
   const [m, a] = await Promise.all([fetch('meta.json').then(r => r.json()), fetch('atlas.json').then(r => r.json())]);
-  META.sets = m.sets; META.list = m.factions; META.atlas = a; for (const f of m.factions) META.byId[f.id] = f; META.ok = true;
+  META.sets = m.sets; META.list = m.factions; META.atlas = a; for (const f of m.factions) { META.byId[f.id] = f; if (f.na && FACTIONS[f.id]) f.na = false; } META.ok = true;
 } catch (e) { META.ok = false; }
   if (!META.ok) { META.list = Object.keys(FACTIONS).map(id => ({ id, name: FACTIONS[id].name, set: 'Core', titan: false, cover: null, color: FACTIONS[id].color, blurb: FACTIONS[id].blurb })); META.sets = ['Core']; for (const f of META.list) META.byId[f.id] = f; }
   render(); })();
@@ -10707,7 +11002,7 @@ function renderDraftPanel(D, canPickNow) {
     <div class="dstrip" aria-label="Pick order">${D.order.map((o, i) => `<span class="chip ${i === D.picks.length ? 'cur' : ''} ${i < D.picks.length ? 'used' : ''}" style="--f:var(--line)"><i></i>${i + 1}. ${esc(draftName(D, D.keys[o]))}</span>`).join('')}</div>
     <div class="dteams">${D.keys.map(k => `<div class="dteam ${k === cur ? 'cur' : ''}"><b>${esc(draftName(D, k))}</b><div class="fs">${draftFacs(D, k).map(chip).join(' ') || '<span class="btxt">—</span>'}</div></div>`).join('')}</div>
     <div class="pgrid">${[...D.pool].sort((a, b) => fname(a).localeCompare(fname(b))).map(f => { const tk = taken.get(f), dis = tk != null || !canPickNow || done;
-      return `<button class="frow ${tk != null ? 'taken' : ''}" style="--f:${fcol(f)}" data-act="dpick" data-f="${f}" ${dis ? 'disabled' : ''}><span class="cv" style="${coverStyle(f, 52)}"></span><span class="fi"><b>${esc(fname(f))}</b><small>${tk != null ? 'Picked by ' + esc(draftName(D, tk)) : esc(fset(f) + ' · ' + fblurb(f))}</small></span></button>`; }).join('')}</div></section>`;
+      return `<button class="frow ${tk != null ? 'taken' : ''}" style="--f:${fcol(f)}" data-act="dpick" data-f="${f}" ${dis ? 'disabled' : ''}><span class="cv" style="${coverStyle(f, 52)}"></span><span class="fi"><b>${esc(fname(f))}${wipTag(f)}</b><small>${tk != null ? 'Picked by ' + esc(draftName(D, tk)) : esc(fset(f) + ' · ' + fblurb(f))}</small></span></button>`; }).join('')}</div></section>`;
   return h; }
 function draftAuto() {
   if (S.dtimer) return; let D = null, local = false;
@@ -10850,7 +11145,7 @@ const V_ = () => S.V;
 const pn = i => i == null ? 'nobody' : esc(S.V.players[i] ? S.V.players[i].name : '?');
 const order = from => { const n = S.V.players.length; return Array.from({ length: n }, (_, i) => (from + i) % n); };
 const actor = () => S.mode === 'local' ? S.seat : (S.V && S.V.seats ? S.V.seats.indexOf(FB.uid) : -1);
-function chip(id) { return `<span class="chip" style="--f:${fcol(id)}"><i></i>${esc(fname(id))}</span>`; }
+function chip(id) { return `<span class="chip" style="--f:${fcol(id)}"><i></i>${esc(fname(id))}${FACTIONS[id] && FACTIONS[id].wip ? ' <small class="wipc">WIP</small>' : ''}</span>`; }
 function cardTile(c, o = {}) {
   const d = CARDS[c.d]; const isM = d.type === 'minion' || d.type === 'fusion';
   const cls = ['card']; if (o.sel) cls.push('sel'); if (o.off) cls.push('off'); if (o.reveal) cls.push('reveal'); if (o.chosen) cls.push('chosen');
@@ -10882,9 +11177,9 @@ function renderHome() {
       <li>Factions: pick from the searchable list of all released factions. Ones marked “Coming soon” are still being built; more become playable with each update.</li>
       <li>Online: friends need a Claude account and Contributor access to this page. Hands are hidden in the interface but are not encrypted, so play with people you trust.</li></ul></details>`; }
 
-const coverStyle = (id, px) => { const m = META.byId[id]; if (!m || !m.cover) return ''; const k = px / 120; return `background-image:url(covers.webp);background-size:${1200 * k}px ${1080 * k}px;background-position:-${m.cover.x * k}px -${m.cover.y * k}px`; };
+const coverStyle = (id, px) => { const m = META.byId[id]; if (!m || !m.cover) return FACTIONS[id] && FACTIONS[id].wip ? `background:linear-gradient(135deg,${fcol(id)},#1b1d24)` : ''; const k = px / 120; return `background-image:url(covers.webp);background-size:${1200 * k}px ${1080 * k}px;background-position:-${m.cover.x * k}px -${m.cover.y * k}px`; };
 function slots(ctx, f) { return `<div class="slots">${[0, 1].map(s => { const id = f[s];
-  return `<button class="slot ${id ? 'on' : ''}" style="--f:${id ? fcol(id) : 'var(--line)'}" data-act="pick" data-t="${ctx.t}" data-i="${ctx.i}" data-s="${s}" aria-label="${id ? 'Change faction: ' + esc(fname(id)) : 'Choose faction ' + (s + 1)}">${id ? `<span class="cv" style="${coverStyle(id, 44)}"></span><span class="fi"><b>${esc(fname(id))}</b><small>${esc(fset(id))}</small></span>`
+  return `<button class="slot ${id ? 'on' : ''}" style="--f:${id ? fcol(id) : 'var(--line)'}" data-act="pick" data-t="${ctx.t}" data-i="${ctx.i}" data-s="${s}" aria-label="${id ? 'Change faction: ' + esc(fname(id)) : 'Choose faction ' + (s + 1)}">${id ? `<span class="cv" style="${coverStyle(id, 44)}"></span><span class="fi"><b>${esc(fname(id))}${wipTag(id)}</b><small>${esc(fset(id))}</small></span>`
     : `<span class="cv empty">+</span><span class="fi"><b>Choose faction ${s + 1}</b><small>Tap to search</small></span>`}</button>`; }).join('')}</div>`; }
 function pickerTaken() { const P = S.picker, set = new Set();
   if (P.t === 'local') S.setup.players.slice(0, S.setup.n).forEach((p, i) => p.f.forEach((f, s) => { if (!(i === P.i && s === P.s)) set.add(f); }));
@@ -10895,8 +11190,8 @@ function renderPicker() {
   const cur = P.t === 'local' ? S.setup.players[P.i].f[P.s] : ((S.room && S.room.players.find(p => p.id === FB.uid) || {}).f || [])[P.s];
   const groups = META.sets.map(set => ({ set, items: META.list.filter(f => f.set === set && (!q || norm(f.name + ' ' + f.set).includes(q))) })).filter(g => g.items.length);
   const nPlay = META.list.filter(f => FACTIONS[f.id]).length;
-  const row = f => { const ok = !!FACTIONS[f.id], tk = taken.has(f.id), dis = !ok || tk, note = tk ? 'Already chosen' : f.na ? 'No card art available' : !ok ? 'Coming soon' : fblurb(f.id);
-    return `<button class="frow ${f.id === cur ? 'cur' : ''}" style="--f:${fcol(f.id)}" data-act="pickf" data-f="${f.id}" ${dis ? 'disabled' : ''}><span class="cv" style="${coverStyle(f.id, 52)}"></span><span class="fi"><b>${esc(f.name)}${f.titan ? ' <em>Titan</em>' : ''}</b><small>${esc(note)}</small></span></button>`; };
+  const row = f => { const ok = !!FACTIONS[f.id], tk = taken.has(f.id), dis = !ok || tk, note = tk ? 'Already chosen' : f.na ? 'Coming soon (WIP)' : !ok ? 'Coming soon' : fblurb(f.id);
+    return `<button class="frow ${f.id === cur ? 'cur' : ''}" style="--f:${fcol(f.id)}" data-act="pickf" data-f="${f.id}" ${dis ? 'disabled' : ''}><span class="cv" style="${coverStyle(f.id, 52)}"></span><span class="fi"><b>${esc(f.name)}${f.titan ? ' <em>Titan</em>' : ''}${wipTag(f.id)}</b><small>${esc(note)}</small></span></button>`; };
   return `<div class="overlay" data-act="closepick"><div class="panel wide picker" data-stop="1" role="dialog" aria-label="Choose a faction">
     <div class="row" style="justify-content:space-between"><h2 style="margin:0">Choose a faction</h2><button class="btn ghost" data-act="closepick">Close</button></div>
     <input id="pq" type="search" data-in="pq" value="${esc(S.pq || '')}" placeholder="Search ${META.list.length} factions or sets…" autocomplete="off" aria-label="Search factions">
