@@ -10429,7 +10429,7 @@ const metaP = (async () => { try {
 async function ensureArt(ids) {
   await metaP; const todo = [...new Set(ids)].filter(id => META.atlas[id] && !artState[id]); if (!todo.length) return;
   await Promise.all(todo.map(async id => { artState[id] = 1;
-    try { const bmp = await createImageBitmap(await (await fetch('atlas/' + id + '.webp')).blob()), A = META.atlas[id];
+    try { const bmp = await createImageBitmap(await (await fetch('atlas/' + id + '.webp').then(r => r.ok ? r : fetch(id + '.webp'))).blob()), A = META.atlas[id];
       for (const [n, sect, x, y, w, h] of A.cells) { const key = norm(n); let cid = null, bid = null;
         if (/Base/.test(sect)) bid = IDX.b[id + '|' + key]; else cid = IDX.c[id] && IDX.c[id][key]; if (!cid && !bid) continue;
         const cv = document.createElement('canvas'); cv.width = w; cv.height = h; cv.getContext('2d').drawImage(bmp, x, y, w, h, 0, 0, w, h);
