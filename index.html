@@ -279,7 +279,7 @@ details.rules li { margin: 4px 0; }
 </style>
 
 <div class="wrap" id="app"></div>
-<div class="ver" aria-label="Page version">Version Oct 17 21:31 UTC</div>
+<div class="ver" aria-label="Page version">Version Oct 17 23:34 UTC</div>
 <div id="layer"></div>
 <div id="chatdock"></div><div id="toast" role="status" aria-live="polite"></div>
 
@@ -1779,13 +1779,13 @@ on: { actionPlayed: async (g, b, ev) => { const p = ev.p; if (p == null || !isSt
       const to = await pickOther(g, p, 'Place it into whose hand?'); if (to == null || !g.rm(g.pileOf(ev.card), ev.card)) return;
       await give(g, p, ev.card, to); g.draw(p, 2); } } });
   // Clarification: The counters for this base are different from +1 power counters, and neither one counts as the other. You may wish to use a different kind of token for this counter.
-  F.base("storytellers_hut", "Storyteller's Hut", 24, [4, 2, 1], "On your turn, you may play an extra action to place a counter on this card. This base’s breakpoint is reduced by 2 for each of those counters.", { // APPROX: the base's "on your turn, you may play an extra action" is offered at the start of each player's turn (engine bases have no turn-menu options).
+  F.base("storytellers_hut", "Storyteller's Hut", 24, [4, 2, 1], "On your turn, you may play an extra action to place a counter on this card. This base’s breakpoint is reduced by 2 for each of those counters.", {
 f: { breakpoint: (g, b, ctx) => ctx.b === b ? -2 * (b.flags.hut || 0) : 0 },
-    on: { turnStart: async (g, b, ev) => { const p = ev.p;
-      for (let i = 0; i < 30; i++) { if (!g.bases.includes(b) || !g.hasPlayableAction(p)) return;
-        if (!(await g.yesno(p, 'Storyteller’s Hut: play an extra action to place a counter on this base?'))) return;
-        if (!(await g.extraAction(p, { prompt: 'Storyteller’s Hut: choose an extra action to play' }))) return;
-        b.flags.hut = (b.flags.hut || 0) + 1; g.log(`Storyteller’s Hut gets a counter (${b.flags.hut}).`); } } } });
+    // Optional base ability: shown in the turn menu (click it to use it), once per turn (General FAQ).
+    turnOpts: (g, p, b) => { if (g.current !== p || g.turn.phase !== 'play' || b.flags.hutTurn === g.round || !g.hasPlayableAction(p)) return null;
+      return { label: `Storyteller’s Hut: play an extra action to place a counter on this base`, run: async () => {
+        if (!(await g.extraAction(p, { prompt: 'Storyteller’s Hut: choose an extra action to play' }))) return false;
+        b.flags.hutTurn = g.round; b.flags.hut = (b.flags.hut || 0) + 1; g.log(`Storyteller’s Hut gets a counter (${b.flags.hut}).`); } }; } });
 });
 
 /* Ancient Egyptians — Oops, You Did It Again. Mechanic: bury cards on bases and uncover them later. */
@@ -1864,7 +1864,9 @@ SmashUp.faction("ancient_egyptians", { name: "Ancient Egyptians", set: "Oops, Yo
 
   /* APPROX: "On your turn, you may…" base abilities have no turn-menu hook in the engine (see ENGINE_REQUESTS.md); Pyramids is offered at the start of each turn. */
   F.base("pyramids", "Pyramids", 21, [4, 2, 1], "On your turn, you may bury a card from your hand here.", {
-    on: { turnStart: async (g, b, ev) => { const p = ev.p; if (!handB(g, p).length) return; if (await g.yesno(p, 'Pyramids: bury a card from your hand here?')) await buryFromHand(g, p, b); } } });
+    /* optional "on your turn" ability: a turn-menu option, once per turn (General FAQ) */
+    turnOpts: (g, p, b) => { if (g.current !== p || g.turn.phase !== 'play' || b.flags.pyrTurn === g.round || !handB(g, p).length) return null;
+      return { label: 'Pyramids: bury a card from your hand here', run: async () => { b.flags.pyrTurn = g.round; await buryFromHand(g, p, b); } }; } });
   F.base("star_portal", "Star Portal", 17, [3, 1, 1], "After a card is buried here or an action is played on this base, its controller draws a card.", {
     on: { cardBuried: async (g, b, ev) => { if (ev.base === b) g.draw(ev.p, 1); },
           actionPlayed: async (g, b, ev) => { if (ev.target === b) g.draw(ev.p, 1); } } });
@@ -4193,8 +4195,8 @@ SmashUp.faction("g_i_gerald", { name: "G.I. Gerald", set: "Half the Battle", col
       for (const m of b.minions.filter(x => x.controller === p && x.pstamp && x.pstamp.r === g.round && x.pstamp.b === b)) await tempPow(g, m, 2); } });
 
   F.base("uss_banner", "USS Banner", 20, [4, 2, 1], "On your turn, you may play an extra minion here of power 2 or less. If you control it at the end of the turn, place it on top of your deck.", {
-    turnOpts: (g, p, b) => { if (g.current !== p || g.turn.phase !== 'play') return null; if (!g.players[p].hand.some(c => (c.def.type === 'minion' || c.def.type === 'fusion') && c.def.power <= 2 && g.legalBases(p, c, { base: b }).length)) return null;
-      return { label: `USS Banner: play an extra minion of power 2 or less at ${b.def.name}`, run: async () => { const m = await g.extraMinion(p, { maxPower: 2, base: b, optional: true, prompt: 'USS Banner: play an extra minion of power 2 or less here' }); if (!m) return false; if (m.base) m.flags.banner = g.round; } }; },
+    turnOpts: (g, p, b) => { if (g.current !== p || g.turn.phase !== 'play' || b.flags.bannerTurn === g.round) return null; if (!g.players[p].hand.some(c => (c.def.type === 'minion' || c.def.type === 'fusion') && c.def.power <= 2 && g.legalBases(p, c, { base: b }).length)) return null;
+      return { label: `USS Banner: play an extra minion of power 2 or less at ${b.def.name}`, run: async () => { const m = await g.extraMinion(p, { maxPower: 2, base: b, optional: true, prompt: 'USS Banner: play an extra minion of power 2 or less here' }); if (!m) return false; b.flags.bannerTurn = g.round; if (m.base) m.flags.banner = g.round; } }; },
     on: { turnEnd: async (g, b, ev) => { for (const m of g.allMinions().filter(x => x.flags.banner === g.round && x.controller === ev.p)) await g.toTop(m, g.src.base(ev.p)); } } });
 
   F.base("g_i_geralds_base", "G.I. Gerald's Base", 22, [5, 3, 2], "Once per turn, after you play a minion here, you may draw a card and place a card from your hand on the bottom of your deck", {
@@ -4904,8 +4906,8 @@ SmashUp.faction("halflings", { name: "Halflings", set: "Munchkin", color: "#c4a6
       const c = await g.pickCards(p, h, 'Birthday Party: you must discard a card', {}); if (c) g.discardCards(p, [c], 'hand'); } } });
   F.base("subterranean_lair", "Subterranean Lair", 23, [5, 3, 2], "1 Monster. On your turn, if you have no minions on this base, you may play an extra minion here.", { monsters: 1,
     /* APPROX: bases cannot add turn-menu options in the engine; the option is injected by wrapping g.turnOptions (see ENGINE_REQUESTS.md) */
-    turnOpts: (g, p, b) => { if (g.current !== p || g.turn.phase !== 'play' || mineAt(b, p).length || !g.players[p].hand.some(c => isMin(c) && g.canPlayMinionAt(p, c, b))) return null;
-      return { id: 'lair' + b.uid, label: `Subterranean Lair: play an extra minion at ${b.def.name}`, run: async () => { const r = await g.extraMinion(p, { base: b, optional: true, prompt: 'Subterranean Lair: play an extra minion here' }); if (!r) return false; } }; },
+    turnOpts: (g, p, b) => { if (g.current !== p || g.turn.phase !== 'play' || b.flags.lairTurn === g.round || mineAt(b, p).length || !g.players[p].hand.some(c => isMin(c) && g.canPlayMinionAt(p, c, b))) return null;
+      return { id: 'lair' + b.uid, label: `Subterranean Lair: play an extra minion at ${b.def.name}`, run: async () => { const r = await g.extraMinion(p, { base: b, optional: true, prompt: 'Subterranean Lair: play an extra minion here' }); if (!r) return false; b.flags.lairTurn = g.round; } }; },
     on: { baseEntered: async (g) => { installBaseOpts(g); }, turnStart: async (g) => { installBaseOpts(g); } } });
 });
 
@@ -5340,8 +5342,9 @@ SmashUp.faction("killer_plants", { name: "Killer Plants", set: "Awesome Level 90
 
   // APPROX: bases cannot add turn-menu options, so the extra minion is offered at the start of each player's turn instead of at any time during it.
   F.base("secret_grove", "Secret Grove", 21, [3, 2, 1], "On your turn, you may play one extra minion of power 2 or less here.", {
-    on: { turnStart: async (g, b, ev) => { const p = ev.p; if (!g.players[p].hand.some(c => isMin(c) && c.def.power <= 2 && g.canPlayMinionAt(p, c, b))) return;
-      await g.extraMinion(p, { base: b, maxPower: 2, optional: true, prompt: 'Secret Grove: play an extra minion of power 2 or less here?' }); } } });
+    /* optional "on your turn" ability: a turn-menu option, once per turn (General FAQ) */
+    turnOpts: (g, p, b) => { if (g.current !== p || g.turn.phase !== 'play' || b.flags.groveTurn === g.round || !g.players[p].hand.some(c => isMin(c) && c.def.power <= 2 && g.canPlayMinionAt(p, c, b))) return null;
+      return { label: `Secret Grove: play an extra minion of power 2 or less at ${b.def.name}`, run: async () => { const m = await g.extraMinion(p, { base: b, maxPower: 2, optional: true, prompt: 'Secret Grove: play an extra minion of power 2 or less here' }); if (!m) return false; b.flags.groveTurn = g.round; } }; } });
 
   /* The Greenhouse. The engine does not deliver baseReplaced to the replaced base, so after scoring we hook the next baseEntered call (the replacement) once. */
   async function greenhouse(g, b, nb) {
@@ -5566,10 +5569,12 @@ SmashUp.faction("knights_of_the_round_table", { name: "Knights of the Round Tabl
   // Errata: Yes, Functional (changed to "printed power" from "power")
   F.base("camelot", "Camelot", 22, [5, 3, 2], "Minions here of printed power 4 or more cannot be affected by other players’ cards. On your turn, you may move one of your minions from here to another base.", {
     f: { canAffect: (g, b, { m, src }) => !(m.base === b && m.def.power >= 4 && src && src.player != null && src.player !== m.controller) },
-    // APPROX: "on your turn" is offered at the start of the turn (bases have no turn-menu entries)
-    on: { turnStart: async (g, b, ev) => { const p = ev.p, src = g.src.base(p); const ms = b.minions.filter(m => m.controller === p && g.bases.some(x => g.canMoveTo(m, x, src))); if (!ms.length) return;
-      const m = await g.pickMinion(p, ms, 'Camelot: move one of your minions from here to another base?', { optional: true }); if (!m) return;
-      const d = await g.pickBase(p, g.bases.filter(x => g.canMoveTo(m, x, src)), 'Move it to which base?'); if (d) await g.move(m, d, src); } } });
+    /* optional "on your turn" ability: a turn-menu option, once per turn (General FAQ) */
+    turnOpts: (g, p, b) => { if (g.current !== p || g.turn.phase !== 'play' || b.flags.camTurn === g.round) return null; const src = g.src.base(p);
+      if (!b.minions.some(m => m.controller === p && g.bases.some(x => g.canMoveTo(m, x, src)))) return null;
+      return { label: 'Camelot: move one of your minions from here to another base', run: async () => { const ms = b.minions.filter(m => m.controller === p && g.bases.some(x => g.canMoveTo(m, x, src)));
+        const m = await g.pickMinion(p, ms, 'Camelot: move one of your minions from here to another base?', { optional: true }); if (!m) return false;
+        const d = await g.pickBase(p, g.bases.filter(x => g.canMoveTo(m, x, src)), 'Move it to which base?'); if (!d) return false; b.flags.camTurn = g.round; await g.move(m, d, src); } }; } });
 
   F.base("round_table", "Round Table", 21, [4, 2, 1], "Each of your minions here with the same printed power as another one of your minions here has +1 power.", {
     f: { power: (g, b, m) => m.base === b && m.controller != null && b.minions.some(x => x !== m && x.controller === m.controller && x.def.power === m.def.power) ? 1 : 0 } });
@@ -6376,11 +6381,11 @@ SmashUp.faction("mermaids", { name: "Mermaids", set: "10th Anniversary", color: 
 
   /* Base abilities usable "on your turn" have no turn-menu hook in the engine (see ENGINE_REQUESTS.md): offered at the start of your turn instead. */
   F.base("mermaid_pool", "Mermaid Pool", 23, [4, 2, 1], "On your turn, if you have a minion here, you may move another player’s minion to here.", {
-    /* APPROX: offered at the start of your turn (repeatable) instead of any time during it */
-    on: { turnStart: async (g, b, ev) => { const p = ev.p, src = g.src.base(p);
-      for (let i = 0; i < 20; i++) { if (!b.minions.some(m => m.controller === p)) return;
-        const c = theirs(g, p).filter(x => x.base !== b && g.canMoveTo(x, b, src)); if (!c.length) return;
-        const t = await g.pickMinion(p, c, 'Mermaid Pool: move another player’s minion here?', { optional: true, src }); if (!t) return; await g.move(t, b, src); } } } });
+    /* optional "on your turn" ability: a turn-menu option, once per turn (General FAQ) */
+    turnOpts: (g, p, b) => { if (g.current !== p || g.turn.phase !== 'play' || b.flags.poolTurn === g.round || !b.minions.some(m => m.controller === p)) return null; const src = g.src.base(p);
+      if (!theirs(g, p).some(x => x.base !== b && g.canMoveTo(x, b, src))) return null;
+      return { label: 'Mermaid Pool: move another player’s minion to this base', run: async () => { const c = theirs(g, p).filter(x => x.base !== b && g.canMoveTo(x, b, src));
+        const t = await g.pickMinion(p, c, 'Mermaid Pool: move another player’s minion here?', { optional: true, src }); if (!t) return false; b.flags.poolTurn = g.round; await g.move(t, b, src); } }; } });
 
   F.base("mermaid_reef", "Mermaid Reef", 17, [3, 1, 1], "During your turn, other players’ minions here add 1 less power to their controller’s total.", {
     f: { basePower: (g, b, { b: base, p }) => base === b && p != null && p !== g.current ? -lessFor(g, b, p) : 0 } });
@@ -7109,15 +7114,21 @@ SmashUp.faction("penguins", { name: "Penguins", set: "Promos & Standalone", colo
   SmashUp.revealedTop = revealed;   // also usable by other factions' reveal effects
   /* Play a minion off the top of p's deck as an extra minion (base chosen after seeing it). o: base, maxPower. Returns the minion or null. */
   async function playTop(g, p, o = {}) {
-    const pl = g.players[p]; const top = g.topCard(p); if (!top) return null;
-    g.log(`${g.pname(p)} reveals ${top.def.name} from the top of their deck.`);
-    const stillTop = await revealed(g, p, [top], c => { if (pl.deck[pl.deck.length - 1] === c) { pl.deck.pop(); return true; } return false; });
-    if (!stillTop.length) return null;
-    if (!isMin(top) || (o.maxPower != null && top.def.power > o.maxPower)) { g.log(`${top.def.name} is not a minion that can be played; it stays on top.`); return null; }
-    if (pl.deck[pl.deck.length - 1] !== top) return null;
-    const bs = g.legalBases(p, top, o); if (!bs.length) { g.log(`${top.def.name} cannot be played.`); return null; }
-    const base = bs.length === 1 ? bs[0] : (await g.pickBase(p, bs, `Play ${top.def.name} where?`)) || bs[0];
-    pl.deck.pop(); return await g.playMinion(p, top, base, { extra: true, from: 'deck' }); }
+    const pl = g.players[p]; if (!pl.deck.length && pl.discard.length) g.topCard(p);   // empty deck: shuffle the discard pile into a new deck
+    const held = []; let found = null;
+    while (pl.deck.length) {   // official rule: reveal cards until a minion is revealed, play it, shuffle the other revealed cards back
+      const c = pl.deck.pop(); held.push(c); g.log(`${g.pname(p)} reveals ${c.def.name} from the top of their deck.`);
+      const left = await revealed(g, p, [c], x => { const i = held.indexOf(x); if (i < 0) return false; held.splice(i, 1); return true; });
+      if (!left.length) continue;
+      if (isMin(c) && (o.maxPower == null || c.def.power <= o.maxPower)) { found = c; break; } }
+    let m = null;
+    try {
+      if (found) { held.splice(held.indexOf(found), 1);
+        const bs = g.legalBases(p, found, o);
+        if (!bs.length) { g.log(`${found.def.name} cannot be played and is discarded.`); g.toDiscard(found); }
+        else { const base = bs.length === 1 ? bs[0] : (await g.pickBase(p, bs, `Play ${found.def.name} where?`)) || bs[0]; m = await g.playMinion(p, found, base, { extra: true, from: 'deck', offDeck: true }); } }
+    } finally { if (held.length) { pl.deck.push(...held); g.shuffleDeck(p); } }
+    return m; }
   const myTitan = (g, p) => g.players[p].titans.find(t => t.def.key === 'emperor_penguin');
   /* number of cards p has at base b (minions, actions, buried, stored, titan) */
   function cardsAt(g, p, b) { let n = 0;
@@ -7707,12 +7718,20 @@ SmashUp.faction("rulers_of_the_cosmos", { name: "Rulers of the Cosmos", set: "Ha
 SmashUp.faction("russian_fairy_tales", { name: "Russian Fairy Tales", set: "World Tour: Culture Shock", color: "#b846a7", blurb: "The legendary tales of Russia enter Smash Up and bring with them fantastical characters, including the dangerous Baba Yaga.", uses: [] }, F => {
 const isAct = c => c.def.type === 'action' || c.def.type === 'fusion';
   const isMin = c => c.def.type === 'minion' || c.def.type === 'fusion';
-  /* player p plays the minion on top of their deck at base b as an extra minion (if the top card is not a minion, or cannot be played there, nothing is played) */
+  /* player p plays a minion off the top of their deck at base b as an extra minion: reveal cards until a minion is revealed, play it, shuffle the other revealed cards back (official rulebook) */
   async function playTop(g, p, b, shuffle) {
-    const pl = g.players[p]; let m = null; const top = g.topCard(p);
-    if (top && isMin(top) && g.bases.includes(b) && g.legalBases(p, top, { base: b }).length) { g.rm(pl.deck, top); m = await g.playMinion(p, top, b, { extra: true, from: 'deck' }); }
-    else g.log(`${g.pname(p)} has no minion on top of their deck to play there.`);
-    if (shuffle) g.shuffleDeck(p); return m; }
+    const pl = g.players[p]; if (!pl.deck.length && pl.discard.length) g.topCard(p);   // empty deck: shuffle the discard pile into a new deck
+    const revealed = []; let found = null;
+    while (pl.deck.length) { const c = pl.deck.pop(); revealed.push(c); if (isMin(c)) { found = c; break; } }   // reveal cards until a minion is revealed
+    g.log(`${g.pname(p)} reveals ${revealed.map(c => c.def.name).join(', ') || 'nothing'} from the top of their deck.`);
+    const rest = revealed.filter(c => c !== found); let m = null;
+    try {
+      if (found) {
+        if (g.bases.includes(b) && g.legalBases(p, found, { base: b }).length) m = await g.playMinion(p, found, b, { extra: true, from: 'deck', offDeck: true });
+        else { g.log(`${found.def.name} cannot be played there and is discarded.`); g.toDiscard(found); }
+      }
+    } finally { if (rest.length) { pl.deck.push(...rest); g.shuffleDeck(p); } }   // official rule: the other revealed cards are shuffled back into the deck once the played minion has resolved
+    return m; }
   /* "place a minion on the bottom of its owner's deck to have them play a minion off the top of their deck there as an extra minion, then shuffle" */
   async function transform(g, t, src) {
     const b = t.base, o = t.owner; if (!(await g.toBottom(t, src))) return false;
@@ -8351,9 +8370,9 @@ SmashUp.faction("skeletons", { name: "Skeletons", set: "10th Anniversary", color
   });
 
   F.base("ossuary", "Ossuary", 20, [3, 2, 1], "On your turn, you may bury a minion of power 3 or less from your discard pile here.", {
-    /* APPROX: offered at the start of your turn (repeatable) instead of any time during it (no base turn-menu hook; see ENGINE_REQUESTS.md) */
-    on: { turnStart: async (g, b, ev) => { const p = ev.p;
-      for (let i = 0; i < 20; i++) { const c = await g.pickCards(p, discMin(g, p, 3), 'Ossuary: bury a minion of power 3 or less from your discard pile here?', { optional: true }); if (!c) return; g.rm(g.players[p].discard, c); await g.bury(p, c, b); } } } });
+    /* optional "on your turn" ability: a turn-menu option, once per turn (General FAQ) */
+    turnOpts: (g, p, b) => { if (g.current !== p || g.turn.phase !== 'play' || b.flags.ossTurn === g.round || !discMin(g, p, 3).length) return null;
+      return { label: 'Ossuary: bury a minion of power 3 or less from your discard pile here', run: async () => { const c = await g.pickCards(p, discMin(g, p, 3), 'Ossuary: bury a minion of power 3 or less from your discard pile here?', { optional: true }); if (!c) return false; b.flags.ossTurn = g.round; g.rm(g.players[p].discard, c); await g.bury(p, c, b); } }; } });
 });
 
 /* Slashers — Promos & Standalone. Five killers, each with a signature "play on your minion" weapon. */
@@ -10150,9 +10169,11 @@ SmashUp.faction("vikings", { name: "Vikings", set: "Oops, You Did It Again", col
   // Clarification: You may place a card in your hand you don’t own on top of your deck safely, since no one sees what the card is.
   /* APPROX: "On your turn, you may…" base abilities have no turn-menu hook in the engine (see ENGINE_REQUESTS.md); Longhouse is offered at the start of each of your turns. */
   F.base("longhouse", "Longhouse", 25, [5, 3, 2], "On your turn, you may place a card from your hand on top of your deck to give one of your minions here +2 power until the end of the turn.", {
-    on: { turnStart: async (g, b, ev) => { const p = ev.p; const mine = b.minions.filter(m => m.controller === p); if (!mine.length || !g.players[p].hand.length) return;
-      const src = g.src.base(p); const t = await g.pickMinion(p, mine, 'Longhouse: give +2 power to which of your minions? (place a card from hand on your deck)', { optional: true, src }); if (!t) return;
-      const c = await putOnTop(g, p, 'Longhouse: place a card from your hand on top of your deck'); if (c) { t.temp.push({ amt: 2, until: 'end' }); g.log(`${t.def.name} gets +2 power until end of turn.`); } } } });
+    /* optional "on your turn" ability: a turn-menu option, once per turn (General FAQ) */
+    turnOpts: (g, p, b) => { if (g.current !== p || g.turn.phase !== 'play' || b.flags.lhTurn === g.round || !b.minions.some(m => m.controller === p) || !g.players[p].hand.length) return null;
+      return { label: 'Longhouse: place a card from your hand on top of your deck to give a minion here +2 power', run: async () => { const src = g.src.base(p); const mine = b.minions.filter(m => m.controller === p);
+        const t = await g.pickMinion(p, mine, 'Longhouse: give +2 power to which of your minions? (place a card from hand on your deck)', { optional: true, src }); if (!t) return false;
+        const c = await putOnTop(g, p, 'Longhouse: place a card from your hand on top of your deck'); if (!c) return false; b.flags.lhTurn = g.round; t.temp.push({ amt: 2, until: 'end' }); g.log(`${t.def.name} gets +2 power until end of turn.`); } }; } });
 });
 
 /* Warriors — Munchkin. Reference implementation: monsters and treasure. */
