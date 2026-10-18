@@ -279,7 +279,7 @@ details.rules li { margin: 4px 0; }
 </style>
 
 <div class="wrap" id="app"></div>
-<div class="ver" aria-label="Page version">Version Oct 17 23:34 UTC</div>
+<div class="ver" aria-label="Page version">Version Oct 18 00:32 UTC</div>
 <div id="layer"></div>
 <div id="chatdock"></div><div id="toast" role="status" aria-live="polite"></div>
 
@@ -643,7 +643,7 @@ function createGame(opts) {
   g.pname = p => (p == null ? 'Nobody' : g.players[p].name);
 
   /* ----- asking ----- */
-  g.ask = async (p, spec) => { g.refresh(); return g.host.ask(g, p, spec); };
+  g.ask = async (p, spec) => { if (g._probe) throw g._probeSentinel; g.refresh(); return g.host.ask(g, p, spec); };
   g.pickMinion = async (p, cands, prompt, o = {}) => {
     let c = o.src ? cands.filter(m => !g.immune(m, o.src)) : cands; if (!c.length) return null;
     if (c.length === 1 && !o.optional && !o.cancel) { g.log(`${g.pname(p)}: ${c[0].def.name} is the only target.`); return c[0]; }
@@ -686,8 +686,52 @@ function createGame(opts) {
     return false; };
   const srcOff = s => s.k === 'base' ? !g.baseActive(s.o) : g.abilitiesOff(s.o);
   /* g.emit(name, ev): run def.on[name] of every card in play (and def.onHand/onDiscard of cards in those zones) */
+  /* rulebook 3: when several cards' abilities trigger at the same time, the current player chooses the order.
+     We find the abilities that really trigger (i.e. really have to ask a player something) by letting each candidate run until its first question: g.ask throws PROBE in "probe" mode.
+     A handler that finishes without asking has simply resolved (it needs no ordering); one that reaches a question is "pending" and is re-run from the top in the order chosen.
+     Only handlers that do nothing but read the game before their last question are probed (checked on their source), so the re-run never repeats an effect. */
+  const PROBE = { probe: true }; g._probeSentinel = PROBE;
+  const READS = 'powerOf|minionsOf|allMinions|others|order|pname|log|basePower|breakpoint|baseActive|abilitiesOff|canMoveTo|legalBases|immune|allow|sum|standings|monstersIn|actionsInPlay|titansInPlay|ownedMinions|powerAt|isMicrobot|madnessCount|buriedBy|canPlayMinionAt|canPlayAction|hasPlayableAction|src|talentLeft|rm';
+  const ASKS = /\b(pickMinion|pickMinions|pickCards|pickBase|pickOption|yesno|extraMinion|extraAction)\b|g\.ask\(/g;
+  const probeSafe = h => { if (h.__ps !== undefined) return h.__ps; let ok = false;
+    try { const t = Function.prototype.toString.call(h); let last = -1, m; ASKS.lastIndex = 0; while ((m = ASKS.exec(t))) last = m.index;
+      if (last >= 0) { const pre = t.slice(0, last).replace(/(await\s+)?(g\.)?$/, '');
+        const calls = new RegExp('g\\.(?!(?:' + READS + ')\\b)[A-Za-z_]+\\s*\\(');
+        const preQ = pre.replace(/await g\.(?:pickMinion|pickMinions|pickCards|pickBase|pickOption|yesno)/g, 'await g.Q');
+        ok = !calls.test(preQ.replace(/g\.Q\b/g, 'x')) && !/(\+\+|--|\+=|-=|\.push\(|\.splice\(|\.pop\(|\.shift\()/.test(pre) && !/await\s+(?!x\b)/.test(preQ.replace(/await g\.Q/g, 'await x')); } } catch (e) { ok = false; }
+    return (h.__ps = ok); };
+  const where = s => s.k === 'base' ? '' : (s.o && s.o.base && s.o.base.def ? ` at ${s.o.base.def.name}` : (s.o && s.o.onMinion ? ` on ${s.o.onMinion.def.name}` : ''));
+  const guard = (name, s, h, ev, mode) => ((s.k === 'base' && (name === 'afterScore' || name === 'beforeScore') && ev && ev.b && ev.b !== s.o && !h.any) ? false : true);
   g.emit = async (name, ev) => {
-    for (const s of g.sources()) { const h = s.def.on && s.def.on[name]; if (!h) continue; if (!live(s)) continue; if (srcOff(s) && !h.always) continue; if (s.k === 'base' && (name === 'afterScore' || name === 'beforeScore') && ev && ev.b && ev.b !== s.o && !h.any) continue; /* a base's own "when this base scores" text never fires for some other base */ await h(g, s.o, ev); }
+    const list = [];
+    for (const s of g.sources()) { const h = s.def.on && s.def.on[name]; if (!h) continue; list.push({ s, h }); }
+    const runnable = x => live(x.s) && (!srcOff(x.s) || x.h.always) && guard(name, x.s, x.h, ev);
+    const done = new Set();
+    const canOrder = list.length > 1 && !g._probe && !g.noOrder && !g.over && g.current != null && !(typeof process !== 'undefined' && process.env && process.env.SU_NOORDER);
+    for (const x of list) {
+      if (done.has(x) || !runnable(x)) continue;
+      if (canOrder && probeSafe(x.h)) {
+        /* probe this handler and the not-yet-run ones after it */
+        const pend = [];
+        for (const y of list.slice(list.indexOf(x))) {
+          if (done.has(y) || !runnable(y) || !probeSafe(y.h)) continue;
+          g._probe = true; let asked = false;
+          try { await y.h(g, y.s.o, ev); } catch (e) { if (e === PROBE) asked = true; else { g._probe = false; throw e; } } finally { g._probe = false; }
+          if (asked) pend.push(y); else done.add(y);
+          if (!pend.length && y === x) break;   /* the first one resolved without a question: nothing to order yet, carry on one by one */
+        }
+        if (pend.length > 1) {
+          const left = pend.slice(), seq = [];
+          while (left.length > 1) {
+            const opts = left.map((q, i) => ({ id: String(i), label: q.s.def.name + where(q.s) }));
+            if (typeof process !== 'undefined' && process.env && process.env.SU_TRACE_ORDER) console.error('ORDER', name, opts.map(o => o.label).join(' | '));
+            const k = await g.pickOption(g.current, opts, `Several abilities trigger at once. Which resolves first?`);
+            seq.push(left.splice(+k || 0, 1)[0]); }
+          seq.push(...left);
+          for (const y of seq) { done.add(y); if (live(y.s)) await y.h(g, y.s.o, ev); }
+        } else if (pend.length === 1) { done.add(pend[0]); if (live(pend[0].s)) await pend[0].h(g, pend[0].s.o, ev); }
+        continue; }
+      done.add(x); await x.h(g, x.s.o, ev); }
     for (const p of g.order(g.current)) { const pl = g.players[p];
       for (const c of [...pl.hand]) { const h = c.def.onHand && c.def.onHand[name]; if (h && pl.hand.includes(c)) await h(g, c, ev, p); }
       for (const c of [...pl.discard]) { const h = c.def.onDiscard && c.def.onDiscard[name]; if (h && pl.discard.includes(c)) await h(g, c, ev, p); }
@@ -695,7 +739,11 @@ function createGame(opts) {
     return ev; };
   g.emitSelf = async (o, name, ev) => { const h = o.def && o.def.on && o.def.on[name]; if (h) await h(g, o, ev); return ev; };
   g.queue = (name, ev) => { g.q.push([name, ev]); };
-  g.flush = async () => { let guard = 0; while (g.q.length && guard++ < 200) { const [n, e] = g.q.shift(); await g.emit(n, e); } };
+  /* rulebook 7: a minion that becomes "not affected" by cards/actions loses the (other players') cards attached to it, because an attached card counts as an effect */
+  g.sweepAttachments = async () => { for (const b of g.bases) for (const m of [...b.minions]) for (const a of [...m.attached]) {
+      if (a.controller == null || a.controller === m.controller || a.def.immune) continue;
+      if (g.immune(m, { player: a.controller, kind: 'action' })) { g.log(`${m.def.name} is no longer affected by ${a.def.name}: it is destroyed.`); await g.destroyAction(a, null); } } };
+  g.flush = async () => { let guard = 0; await g.sweepAttachments(); while (g.q.length && guard++ < 200) { const [n, e] = g.q.shift(); await g.emit(n, e); await g.sweepAttachments(); } };
   /* g.sum(name, ctx): add up def.f[name](g, self, ctx); g.allow(name, ctx): false if any def.f[name] returns false */
   g.sum = (name, ctx) => { let v = 0; for (const s of g.sources()) { const f = s.def.f && s.def.f[name]; if (!f || srcOff(s)) continue; v += f(g, s.o, ctx) || 0; } return v; };
   g.allow = (name, ctx) => { for (const s of g.sources()) { const f = s.def.f && s.def.f[name]; if (!f || srcOff(s)) continue; if (f(g, s.o, ctx) === false) return false; } return true; };
@@ -733,7 +781,7 @@ function createGame(opts) {
   g.basePower = b => { let v = 0; for (let p = 0; p < N; p++) v += g.powerAt(b, p); return v; };
   g.breakpoint = b => { let bp = b.def.bp - b.breakMods.reduce((s, x) => s + x.amt, 0) + g.sum('breakpoint', { b });
     for (const m of b.minions) if (m.controller == null && m.def.faction === 'monster') bp += g.powerOf(m);
-    return Math.max(1, bp); };
+    return Math.max(0, bp); };
   g.immune = (m, src) => {
     if (m.isTitan) return false;
     if (!src || src.player === m.controller || src.kind === 'base') return false;
@@ -933,6 +981,7 @@ function createGame(opts) {
     const pl = g.players[p]; const srcArr = o.cards || (o.from === 'discard' ? pl.discard : o.from === 'deck' ? pl.deck : pl.hand);
     const cands = srcArr.filter(c => isMinionCard(c) && (o.maxPower == null || c.def.power <= o.maxPower) && (o.minPower == null || c.def.power >= o.minPower) && (!o.filter || o.filter(c)) && g.legalBases(p, c, o).length);
     if (!cands.length) { g.log(`${pl.name} has no minion to play.`); return null; }
+    if (g.holdable(p, o)) { const ch = await g.askHold(p, 'minion', o); if (ch === 'hold') { g.holdExtra(p, 'minion', o); return null; } if (ch === 'skip') return null; }
     const c = await g.pickCards(p, cands, o.prompt || 'Choose an extra minion to play', { optional: !!o.optional }); if (!c) return null;
     const bs = g.legalBases(p, c, o);
     const base = bs.length === 1 ? bs[0] : (await g.pickBase(p, bs, `Play ${c.def.name} where?`)) || bs[0];
@@ -943,18 +992,21 @@ function createGame(opts) {
   g.canPlayAction = (p, card) => {
     const d = card.def; if (d.specialOnly || (d.type !== 'action' && d.type !== 'fusion')) return false;
     if (g.sleep[p] && g.sleep[p].noActions) return false;
-    if (d.canAction && !d.canAction(g, p)) return false;
+    /* rulebook: you can play an action even if its ability can't happen or has nothing to affect ("canAction" is only a hint for bots/UI); an ongoing action that attaches to a minion needs a minion to attach to */
     if (!g.allow('canPlayAction', { p, card })) return false;
     if (d.target === 'minion') return (d.cands ? d.cands(g, p) : g.allMinions()).length > 0;
     return true; };
+  g.actionHasTarget = (p, card) => { const d = card.def; return !d.canAction || !!d.canAction(g, p); };
   g.hasPlayableAction = p => g.players[p].hand.some(c => g.canPlayAction(p, c));
   g.playAction = async (p, card, o = {}) => {
     const d = card.def; let target = o.target || null;
     if (!d.play && !d.target) { g.toDiscard(card); return false; }   // special-only cards that cannot be played normally
     if (d.target === 'base' && !target) target = await g.pickBase(p, g.bases, `Play ${d.name} on which base?`);
-    if (d.target === 'minion' && !target) target = await g.pickMinion(p, d.cands ? d.cands(g, p) : g.allMinions(), `Play ${d.name} on which minion?`, { src: ac(p) });
+    if (d.target === 'minion' && !target) target = await g.pickMinion(p, d.cands ? d.cands(g, p) : g.allMinions(), `Play ${d.name} on which minion?`);
     if ((d.target === 'base' || d.target === 'minion') && !target) { g.players[p].hand.push(card); return false; }
     g.log(`${g.players[p].name} plays ${d.name}${target ? ' on ' + (target.def.name) : ''}.`);
+    /* rulebook: playing a card on a minion that is not affected by cards/actions just discards the card */
+    if (d.target === 'minion' && target.base && g.immune(target, ac(p))) { g.log(`${target.def.name} is not affected — ${d.name} is discarded.`); g.countPlay(p); g.toDiscard(card); await g.flush(); return true; }
     (g.turn.played = g.turn.played || []).push({ uid: card.uid, d: d.id, p, tg: target ? target.def.name : null });
     card.controller = p; card.flags = {}; g.countPlay(p);
     if (d.target === 'base') { card.onBase = target; target.actions.push(card); card.stored = card.stored || []; if (d.onAttach) await d.onAttach(g, p, card, target); }
@@ -970,6 +1022,7 @@ function createGame(opts) {
   g.extraAction = async (p, o = {}) => {
     const pl = g.players[p]; const srcArr = o.cards || (o.from === 'discard' ? pl.discard : pl.hand);
     const cands = srcArr.filter(c => g.canPlayAction(p, c) && (!o.filter || o.filter(c))); if (!cands.length) { g.log(`${g.players[p].name} has no action to play.`); return false; }
+    if (g.holdable(p, o)) { const ch = await g.askHold(p, 'action', o); if (ch === 'hold') { g.holdExtra(p, 'action', o); return false; } if (ch === 'skip') return false; }
     const c = await g.pickCards(p, cands, o.prompt || 'Choose an extra action to play', { optional: o.optional !== false }); if (!c) return false;
     rm(srcArr, c); return await g.playAction(p, c, { extra: true, from: o.from || 'hand' }); };
   g.playableModes = (p, card) => {
@@ -987,7 +1040,7 @@ function createGame(opts) {
       rm(g.players[p].hand, card); g.turn.minionsLeft--; await g.playMinion(p, card, base); return true; }
     const d = card.def; let target = null;
     if (d.target === 'base') { target = await g.pickBase(p, g.bases, `Play ${d.name} on which base?`, { cancel: true }); if (!target) return false; }
-    if (d.target === 'minion') { target = await g.pickMinion(p, d.cands ? d.cands(g, p) : g.allMinions(), `Play ${d.name} on which minion?`, { cancel: true, src: ac(p) }); if (!target) return false; }
+    if (d.target === 'minion') { target = await g.pickMinion(p, d.cands ? d.cands(g, p) : g.allMinions(), `Play ${d.name} on which minion?`, { cancel: true }); if (!target) return false; }
     rm(g.players[p].hand, card); g.turn.actionsLeft--; await g.playAction(p, card, { target }); return true; };
 
   /* ----- destroying ----- */
@@ -1039,7 +1092,22 @@ function createGame(opts) {
       if (ms.length) o.push({ id: 'tc' + a.uid, label: `Play a minion from your discard at ${b.def.name} (instead of from hand)`, run: async () => {
         const c = await g.pickCards(p, ms, 'Play which minion from your discard pile?', { cancel: true, optional: true }); if (!c) return;
         a.tcTurn = g.round; g.turn.minionsLeft--; rm(pl.discard, c); await g.playMinion(p, c, b); } }); }
-    return o; };
+    return o.concat(g.heldOptions(p)); };
+  /* ----- held extra plays (rulebook 6): a generic extra card granted during your Play Cards phase may be played later that phase ----- */
+  g.holdable = (p, o) => !g.noHold && g.turn.phase === 'play' && p === g.current && !o.noHold && !o.cards && !o.from && !o.base && !o.filter && !o.baseFilter && o.optional !== false;
+  g.askHold = async (p, kind, o) => {
+    const lim = o.maxPower != null ? (o.minPower != null ? ` of power ${o.minPower === o.maxPower ? o.minPower : o.minPower + '-' + o.maxPower}` : ` of power ${o.maxPower} or less`) : '';
+    return await g.pickOption(p, [{ id: 'now', label: 'Play it now' }, { id: 'hold', label: 'Hold it and play it later this turn (turn menu)' }, { id: 'skip', label: 'Don’t play it' }], (o.prompt && !/\?$/.test(o.prompt) ? o.prompt + ' — ' : '') + `You may play an extra ${kind}${lim}. When?`); };
+  g.holdExtra = (p, kind, o) => { (g.turn.held = g.turn.held || []).push({ id: nid(), kind, o: { maxPower: o.maxPower, minPower: o.minPower } }); g.log(`${g.pname(p)} holds an extra ${kind} play for later this turn.`); };
+  g.heldOptions = p => { const out = []; if (g.turn.phase !== 'play' || p !== g.current) return out;
+    for (const h of g.turn.held || []) {
+      const pl = g.players[p]; const ok = h.kind === 'minion' ? pl.hand.some(c => isMinionCard(c) && (h.o.maxPower == null || c.def.power <= h.o.maxPower) && (h.o.minPower == null || c.def.power >= h.o.minPower) && g.legalBases(p, c, {}).length) : pl.hand.some(c => g.canPlayAction(p, c));
+      if (!ok) continue;
+      const lim = h.o.maxPower != null ? (h.o.minPower != null ? ` (power ${h.o.minPower === h.o.maxPower ? h.o.minPower : h.o.minPower + '-' + h.o.maxPower})` : ` (power ${h.o.maxPower} or less)`) : '';
+      out.push({ id: 'held' + h.id, label: `Play your held extra ${h.kind}${lim}`, run: async () => {
+        const r = await (h.kind === 'minion' ? g.extraMinion(p, Object.assign({}, h.o, { optional: true, noHold: true, prompt: 'Held extra minion: choose one to play' })) : g.extraAction(p, { optional: true, noHold: true, prompt: 'Held extra action: choose one to play' }));
+        if (r) rm(g.turn.held, h); else return false; } }); }
+    return out; };
   g.leaveStasis = async (p, e) => { const pl = g.players[p]; if (!rm(pl.stasis, e)) return; const c = e.card, d = c.def; g.log(`${g.pname(p)}: ${d.name} leaves stasis.`);
     if (d.stasis && d.stasis.exit) { const r = await d.stasis.exit(g, p, c); if (r === 'gone') return; g.toDiscard(c); return; }
     if (isMinionCard(c)) { const bs = g.legalBases(p, c, {}); if (bs.length) { const b = await g.pickBase(p, bs, `Play ${d.name} where?`); await g.playMinion(p, c, b || bs[0], { extra: true, from: 'stasis' }); return; } }
@@ -1641,7 +1709,7 @@ SmashUp.faction("adolescent_epic_geckos", { name: "Adolescent Epic Geckos", set:
       if (isFirst(g, p)) await g.extraAction(p); else if (nm && nm.base) await g.addCounters(nm, 1, src); } });
 
   F.action("lasagna_party", "Lasagna Party", 2, "Play an extra minion of power 2 or less. If this is your first action played this turn, play an extra action; if not, place two +1 power counters on a minion at that base.", {
-    play: async (g, p, card) => { const src = g.src.action(p, card); const m = await g.extraMinion(p, { maxPower: 2, optional: true, prompt: 'Lasagna Party: play an extra minion of power 2 or less' });
+    play: async (g, p, card) => { const src = g.src.action(p, card); const m = await g.extraMinion(p, { maxPower: 2, optional: true, noHold: true, prompt: 'Lasagna Party: play an extra minion of power 2 or less' });
       if (isFirst(g, p)) { await g.extraAction(p); return; }
       if (m && m.base) { const t = await g.pickMinion(p, m.base.minions, 'Place two +1 power counters on which minion here?', { src }); if (t) await g.addCounters(t, 2, src); } } });
 
@@ -1784,7 +1852,7 @@ f: { breakpoint: (g, b, ctx) => ctx.b === b ? -2 * (b.flags.hut || 0) : 0 },
     // Optional base ability: shown in the turn menu (click it to use it), once per turn (General FAQ).
     turnOpts: (g, p, b) => { if (g.current !== p || g.turn.phase !== 'play' || b.flags.hutTurn === g.round || !g.hasPlayableAction(p)) return null;
       return { label: `Storyteller’s Hut: play an extra action to place a counter on this base`, run: async () => {
-        if (!(await g.extraAction(p, { prompt: 'Storyteller’s Hut: choose an extra action to play' }))) return false;
+        if (!(await g.extraAction(p, { noHold: true, prompt: 'Storyteller’s Hut: choose an extra action to play' }))) return false;
         b.flags.hutTurn = g.round; b.flags.hut = (b.flags.hut || 0) + 1; g.log(`Storyteller’s Hut gets a counter (${b.flags.hut}).`); } }; } });
 });
 
@@ -3704,7 +3772,7 @@ SmashUp.faction("elves", { name: "Elves", set: "Munchkin", color: "#b5b846", blu
     play: async (g, p, card) => { const ps = g.others(p).filter(q => g.players[q].hand.length); let gone;
       if (ps.length) { const q = await pickPlayer(g, p, ps, 'Trade: take a random card from which player?'); const h = g.players[q].hand; const c = h.splice(Math.floor(g.rand() * h.length), 1)[0];
         g.players[p].hand.push(c); g.log(`${g.pname(p)} takes a random card from ${g.pname(q)}’s hand and gives them Trade.`); card.controller = undefined; g.players[q].hand.push(card); gone = 'gone'; }
-      await g.extraAction(p, { optional: true }); return gone; } });
+      await g.extraAction(p, { optional: true, noHold: true }); return gone; } });
   F.action("traveling_elf", "Traveling Elf", 1, "Play on one of your minions. Talent: Move this minion to another base.", { target: 'minion', cands: (g, p) => g.minionsOf(p),
     talent: { can: (g, a) => !!a.onMinion && g.bases.some(b => g.canMoveTo(a.onMinion, b, g.src.action(a.controller, a))), run: async (g, a) => { const m = a.onMinion, p = a.controller, s = g.src.action(p, a);
       const d = await g.pickBase(p, g.bases.filter(b => g.canMoveTo(m, b, s)), `Move ${m.def.name} to which base?`); if (d) await g.move(m, d, s); } } });
@@ -4182,7 +4250,7 @@ SmashUp.faction("g_i_gerald", { name: "G.I. Gerald", set: "Half the Battle", col
     play: async (g, p, card) => { const src = g.src.action(p, card); const t = await g.pickMinion(p, g.allMinions().filter(x => movable(g, x, src).length), 'Ski Lift: move which minion?', { src }); if (!t) return; const b = await g.pickBase(p, movable(g, t, src), `Move ${t.def.name} to which base?`); if (b) await g.move(t, b, src); } });
 
   F.action("now_you_know_home_safety", "Now You Know: Home Safety", 1, "Play an extra minion of power 2 or less. If it is a fusion, you may also use its Action ability. Special: You may play this before a base scores to copy the Action ability of one of your fusions there instead.", {
-    play: async (g, p) => { const m = await g.extraMinion(p, { maxPower: 2, optional: true, prompt: 'Home Safety: play an extra minion of power 2 or less' });
+    play: async (g, p) => { const m = await g.extraMinion(p, { maxPower: 2, optional: true, noHold: true, prompt: 'Home Safety: play an extra minion of power 2 or less' });
       if (m && m.base && isFusion(m) && await g.yesno(p, `Use ${m.def.name}'s Action ability too?`)) await useAction(g, p, m); },
     special: { when: 'beforeScore', zone: 'hand', can: (g, p, self, b) => b.minions.some(m => m.controller === p && isFusion(m)),
       label: (g, self, b) => `Now You Know: Home Safety: copy the Action ability of one of your fusions at ${b.def.name}`,
@@ -5059,7 +5127,7 @@ SmashUp.faction("innsmouth", { name: "Innsmouth", set: "The Obligatory Cthulhu S
   // Errata: Yes, Wording
   F.action("spreading_the_word", "Spreading the Word", 2, "Play up to two extra minions with the same name as a minion in play.", {
     play: async (g, p) => { for (let i = 0; i < 2; i++) { const names = new Set(g.allMinions().map(m => m.def.name));
-        if (!(await g.extraMinion(p, { filter: c => names.has(c.def.name), optional: true, prompt: `Play an extra minion with the same name as a minion in play (${i + 1}/2)` }))) break; } } });
+        if (!(await g.extraMinion(p, { noHold: true, filter: c => names.has(c.def.name), optional: true, prompt: `Play an extra minion with the same name as a minion in play (${i + 1}/2)` }))) break; } } });
 
   // Clarification: It only affects minions currently in play, not those played later in the turn.
   F.action("the_deep_ones", "The Deep Ones", 2, "Each of your minions of power 2 or less get +1 power until the end of the turn.", {
@@ -5444,12 +5512,10 @@ SmashUp.faction("kitty_cats", { name: "Kitty Cats", set: "Pretty Pretty Smash Up
       if (await g.move(m, b, src)) ev.prevent = true; } } });
   // Errata: Yes, Wording
   F.base("cool_cats_alley", "Cool Cats' Alley", 18, [3, 2, 1], "Once on your turn, you may destroy one of your minions here to draw a card.", {
-    // APPROX: the engine has no base-ability turn option; the offer is made at the start of your turn and after you play a minion here (once per turn).
-    on: { turnStart: async (g, b, ev) => { await alley(g, b, ev.p); },
-          minionPlayed: async (g, b, ev) => { if (ev.base === b && ev.p === g.current && ev.p != null && !(ev.o && ev.o.uncontrolled)) await alley(g, b, ev.p); } } });
-  async function alley(g, b, p) { if (b.flags.cca === g.round) return; const mine = b.minions.filter(m => m.controller === p); if (!mine.length) return;
-    const src = g.src.base(p); const t = await g.pickMinion(p, mine, 'Cool Cats’ Alley: destroy one of your minions here to draw a card?', { optional: true, src }); if (!t) return;
-    if (await g.destroy(t, src)) { b.flags.cca = g.round; g.draw(p, 1); } }
+    /* optional "once on your turn" ability: a turn-menu option you can use any time during your turn */
+    turnOpts: (g, p, b) => { if (g.current !== p || g.turn.phase !== 'play' || b.flags.cca === g.round || !b.minions.some(m => m.controller === p)) return null;
+      return { label: 'Cool Cats’ Alley: destroy one of your minions here to draw a card', run: async () => { const src = g.src.base(p); const t = await g.pickMinion(p, b.minions.filter(m => m.controller === p), 'Cool Cats’ Alley: destroy which of your minions here?', { optional: true, src }); if (!t) return false;
+        if (await g.destroy(t, src)) { b.flags.cca = g.round; g.draw(p, 1); } else return false; } }; } });
 });
 
 /* Knights of the Round Table — Promos & Standalone. */
@@ -5611,7 +5677,7 @@ SmashUp.faction("kree", { name: "Kree", set: "Smash Up: Marvel", color: "#2f6fb0
     talent: { can: (g, a) => !!a.onMinion && g.hasPlayableAction(a.controller), run: async (g, a) => { await g.extraAction(a.controller); } } });
   F.action("righteous_fury", "Righteous Fury", 2, "Play on a character. Ongoing: This character has +3 power.", { target: 'minion', pmod: 3 });
   F.action("speed_up", "Speed Up", 1, "Play up to two extra actions.", {
-    play: async (g, p) => { for (let i = 0; i < 2; i++) { if (!(await g.extraAction(p, { prompt: `Speed Up: play an extra action (${i + 1}/2)` }))) break; } } });
+    play: async (g, p) => { for (let i = 0; i < 2; i++) { if (!(await g.extraAction(p, { noHold: true, prompt: `Speed Up: play an extra action (${i + 1}/2)` }))) break; } } });
 });
 
 /* Kung Fu Fighters — That '70s Expansion. +1 power counter manipulation, plus the Sifu titan. */
@@ -5870,7 +5936,7 @@ SmashUp.faction("mad_scientists", { name: "Mad Scientists", set: "Promos & Stand
       ev.prevent = true; g.log(`Grave Situation: ${m.def.name} returns to hand instead of being destroyed.`); await g.removeMinion(m, 'hand', ev.src, 'hand'); } } });
 
   F.action("its_alive", "IT'S ALIVE!", 2, "Play an extra minion. Place a +1 power counter on it.", {
-    play: async (g, p, card) => { const m = await g.extraMinion(p, { optional: true }); if (m && m.base) await g.addCounters(m, 1, g.src.action(p, card)); } });
+    play: async (g, p, card) => { const m = await g.extraMinion(p, { optional: true, noHold: true }); if (m && m.base) await g.addCounters(m, 1, g.src.action(p, card)); } });
 
   F.action("jolt", "Jolt", 1, "Place a +1 power counter on each of your minions.", {
     play: async (g, p, card) => { const src = g.src.action(p, card); for (const m of [...g.minionsOf(p)]) await g.addCounters(m, 1, src); } });
@@ -6216,7 +6282,7 @@ SmashUp.faction("mega_troopers", { name: "Mega Troopers", set: "Big in Japan", c
       run: async (g, p, c) => { if (!g.rm(g.players[p].hand, c)) return; await g.playAction(p, c, { extra: true, from: 'special' }); } } });
   F.action("form_megabot", "Form Megabot!", 2, "Play Megabot OR move any number of your minions to Megabot's base.", {
     canAction: (g, p) => fm(g, p).length > 0,
-    play: async (g, p, card) => { const ops = fm(g, p); const id = await g.pickOption(p, ops, 'Form Megabot!: choose one'); const t = megabot(g, p);
+    play: async (g, p, card) => { const ops = fm(g, p); const id = await g.pickOption(p, ops, 'Form Megabot!: choose one'); const t = megabot(g, p); if (!id || !t) return;
       if (id === 'play') { const b = await g.pickBase(p, g.bases, 'Play Megabot where?'); if (b && canPlayT(g, p, t, b)) await playT(g, p, t, b); }
       else { const src = g.src.action(p, card), d = t.base; const ms = await g.pickMinions(p, g.minionsOf(p).filter(m => m.base !== d && g.canMoveTo(m, d, src)), 'Form Megabot!: move which of your minions to Megabot’s base?', { min: 0, src }); for (const m of ms) await g.move(m, d, src); } } });
   function fm(g, p) { const t = megabot(g, p), ops = []; if (!t) return ops; if (canPlayT(g, p, t)) ops.push({ id: 'play', label: 'Play Megabot' });
@@ -6727,7 +6793,7 @@ SmashUp.faction("musketeers", { name: "Musketeers", set: "World Tour: Internatio
   F.action("one_for_all", "One For All", 2, "Choose a base. Each of your minions there gains +1 power until the end of the turn. You may play an extra action.", { hits: true, canAction: (g, p) => g.minionsOf(p).length > 0,
     play: async (g, p, card) => { const b = await g.pickBase(p, g.bases.filter(x => mineAt(g, p, x).length), 'One For All: choose a base'); if (!b) return;
       for (const m of mineAt(g, p, b)) { m.temp.push({ amt: 1, until: 'end' }); hit(g, p, card, m); } g.log('Your minions there gain +1 power until end of turn.'); await g.extraAction(p); } });
-  F.action("to_battle", "To Battle!", 1, "Play an extra minion. You may play an action that directly affects it as an extra action.", { play: async (g, p) => { const m = await g.extraMinion(p, { prompt: 'To Battle!: choose an extra minion to play' }); if (m && m.base) await extraHit(g, p, m); } });
+  F.action("to_battle", "To Battle!", 1, "Play an extra minion. You may play an action that directly affects it as an extra action.", { play: async (g, p) => { const m = await g.extraMinion(p, { noHold: true, prompt: 'To Battle!: choose an extra minion to play' }); if (m && m.base) await extraHit(g, p, m); } });
   F.action("token_of_affection", "Token of Affection", 1, "Search your deck and/or discard pile for an action that directly affects a minion and place it into your hand. You may play it as an extra action.", { play: async (g, p) => { const pl = g.players[p]; const ok = c => isAct(c) && (c.def.target === 'minion' || c.def.hits);
       const c = await g.pickCards(p, [...pl.deck, ...pl.discard].filter(ok), 'Token of Affection: take which action (that directly affects a minion) into your hand?', { optional: true }); if (!c) return;
       const fromDeck = g.rm(pl.deck, c); if (!fromDeck) g.rm(pl.discard, c); pl.hand.push(c); g.log(`${g.pname(p)} takes ${c.def.name} into their hand.`); if (fromDeck) g.shuffleDeck(p);
@@ -8625,7 +8691,7 @@ SmashUp.faction("smash_up_all_stars", { name: "Smash Up All Stars", set: "Promos
 
   F.action("favor_of_dionysus", "Favor of Dionysus", 1, "One of your minions gains +1 power until the end of the turn. Play an extra action. You may place this card on top of your deck instead of the discard pile.", {
     play: async (g, p, card) => { const m = await g.pickMinion(p, g.minionsOf(p), 'Favor of Dionysus: +1 power to which of your minions?', { src: g.src.action(p, card) }); if (m) { m.temp.push({ amt: 1, until: 'end' }); g.log(`${m.def.name} gets +1 power this turn.`); }
-      await g.extraAction(p); if (await g.yesno(p, 'Place Favor of Dionysus on top of your deck instead of the discard pile?')) { g.toDeckTop(card); return 'gone'; } } });
+      await g.extraAction(p, { noHold: true }); if (await g.yesno(p, 'Place Favor of Dionysus on top of your deck instead of the discard pile?')) { g.toDeckTop(card); return 'gone'; } } });
 
   F.action("friendship_power", "Friendship Power", 1, "Move one of your minions to a base where you have a minion. You may place this action into your hand instead of the discard pile.", {
     play: async (g, p, card) => { const src = g.src.action(p, card), dests = m => g.bases.filter(b => b !== m.base && b.minions.some(x => x.controller === p) && g.canMoveTo(m, b, src));
@@ -10703,7 +10769,7 @@ function create(g, env) {
         if (m === 'minion') { const t = c.def.text || ''; const sc = []; for (const b of g.legalBases(p, c, {})) sc.push({ b, s: chg(b, p, c.def.power) + nz(P.noise) });
           sc.sort((a, b2) => b2.s - a.s); const keep = P.mc ? sc.slice(0, 2) : sc.slice(0, 1);
           for (const x of keep) cands.push({ c, m, s: x.s + (/destroy|extra|draw|return/i.test(t) ? P.tb : 0) + P.tm, base: x.b }); }
-        else { const t = c.def.text || ''; cands.push({ c, m, s: P.ab + (/extra (minion|action)/i.test(t) ? P.ax : 0) + (/draw/i.test(t) ? P.ad : 0) + nz(P.noise) }); } } }
+        else { if (g.actionHasTarget && !g.actionHasTarget(p, c)) continue; const t = c.def.text || ''; cands.push({ c, m, s: P.ab + (/extra (minion|action)/i.test(t) ? P.ax : 0) + (/draw/i.test(t) ? P.ad : 0) + nz(P.noise) }); } } }
     for (const o of pe.info.options) { if ((mem.opts[o.id] || 0) >= 1) continue; cands.push({ o, s: P.oa + nz(P.noise) + (P === LEVELS.easy ? -1 : 0) }); }
     return cands; }
   function commit(pick) {
@@ -10829,6 +10895,7 @@ function create(g, env) {
     if (/Use a Special/i.test(q)) { const sp1 = o.find(x => x.id !== '__pass'); return (sp1 && (P !== LEVELS.easy || Math.random() < 0.5)) ? sp1.id : '__pass'; }
     if (o.every(x => /^\d+$/.test(x.id)) && o.some(x => g.players.some(pl => pl.name === x.label))) { const en = o.filter(x => +x.id !== me); const pool = en.length ? en : o; return best(pool, x => g.players[+x.id].vp).id; }
     if (o.some(x => /breakpoint/.test(x.label))) { return best(o, x => { const m = /breakpoint (\d+), (\d+)/.exec(x.label); return m ? +m[2] - +m[1] / 10 : 0; }).id; }
+    if (o.some(x => x.id === 'now') && o.some(x => x.id === 'hold')) return 'now';
     if (o.some(x => x.id === 'actions')) return 'actions';
     if (o.some(x => x.id === 'play')) return o.find(x => x.id === 'play').id;
     if (P === LEVELS.easy) return rnd(o).id; return o[0].id; }
