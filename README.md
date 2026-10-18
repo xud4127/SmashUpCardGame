@@ -1,6 +1,6 @@
 # Smash Up Table
 
-A browser version of AEG's Smash Up for you and your friends: 90 factions, titans, Madness, monsters and treasure, a searchable faction picker, computer opponents, a snake draft, and online rooms. Personal, non-commercial use only. Smash Up and all card art belong to Alderac Entertainment Group; art is loaded from the Smash Up wiki images shipped in `atlas/`.
+A browser version of AEG's Smash Up for you and your friends: 90 factions, titans, Madness, monsters and treasure, a searchable faction picker, expert-level computer opponents, a snake draft, live online rooms, and async games you play at your own pace. Personal, non-commercial use only. Smash Up and all card art belong to Alderac Entertainment Group; art is loaded from the Smash Up wiki images shipped in `atlas/`.
 
 Hot-seat play (everyone on one screen, with or without computer players) works as soon as the site is up. **Online rooms need a free Firebase project** (about 10 minutes, one time). Follow both parts below.
 
@@ -22,6 +22,16 @@ Hot-seat play (everyone on one screen, with or without computer players) works a
 7. Open your site on two devices → **Create a room** on one, **Join** with the 4-letter code on the other. The host's browser runs the game, so the host should keep the tab open.
 
 If online play shows an error, the message names what is wrong (usually a config value or Anonymous sign-in not enabled). In the browser console, a "Missing or insufficient permissions" error means the rules in step 4 were not published.
+
+## Async games
+
+Choose **Async games → Start an async game** on the home screen. Friends join from **My games** with the 4-letter code (any time before you start), pick factions or run a snake draft, and the creator starts the game. After that nobody has to stay online: whoever the game is waiting on opens it, makes their move, and closes the tab. **My games** lists your games, marks the ones waiting on you, and the tab title shows how many (for example "(2) Smash Up Table").
+
+- Computer players move from the browser of whoever moved last; if that tab closes mid-way, any other player who has the game open takes over after about 15 seconds.
+- **Undo** takes back your last play as long as no other person has moved since.
+- **Seat key:** Firebase knows each player by their browser. To carry on from another phone or computer, tap **Seat key** in the game, then on the new device join with the game code and enter that key.
+- Uses the same Firebase project and the same rules as live rooms (everything lives under `rooms/`), so nothing new to set up.
+- Try not to update `index.html` while an async game is half-way through: a rules change can stop old games from rebuilding. The game shows a warning if it was started on a different version.
 
 ## Good to know
 

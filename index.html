@@ -61,6 +61,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 .seg { display: inline-flex; border: 2px solid var(--ink); border-radius: 8px; overflow: hidden; }
 .seg button { border: 0; background: var(--surface); padding: 7px 16px; font-weight: 700; }
 .seg button[aria-pressed=true] { background: var(--ink); color: var(--bg); }
+.seg.full { display: flex; } .seg.full button { flex: 1; }
 details.rules { margin-top: 22px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 14px; }
 details.rules summary { cursor: pointer; font-weight: 700; }
 details.rules ul { margin: 10px 0 2px; padding-left: 20px; color: var(--muted); }
@@ -209,6 +210,13 @@ details.rules li { margin: 4px 0; }
 .dbox{display:grid;gap:10px;margin-top:18px;padding:14px;border:1.5px dashed var(--line);border-radius:12px;background:var(--surface-2)}
 .dbox input[type=number]{width:84px}
 .dpanel{display:grid;gap:12px;margin-top:16px}
+.mglist{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:10px}
+.mg{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow)}
+.mg.up{border:2px solid var(--accent)}
+.mgi{display:grid;gap:3px;min-width:0;flex:1 1 240px}.mgi b{font:700 16px var(--body);overflow-wrap:anywhere}
+.chip.yt{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
+.anote{margin:8px 0 0;padding:8px 12px;border-radius:10px;background:var(--surface-2);border:1.5px solid var(--line);font:500 13px var(--body);color:var(--muted)}
+.anote.warn{border-color:var(--hl);color:var(--ink)}
 .dturn{padding:10px 14px;border-radius:10px;background:var(--surface);border:1.5px solid var(--hl);box-shadow:var(--shadow);font:500 15px var(--body)}
 .dturn.done{border-color:var(--good)}
 .dstrip{display:flex;flex-wrap:wrap;gap:6px}
@@ -279,7 +287,7 @@ details.rules li { margin: 4px 0; }
 </style>
 
 <div class="wrap" id="app"></div>
-<div class="ver" aria-label="Page version">Version Oct 18 00:32 UTC</div>
+<div class="ver" aria-label="Page version">Version Oct 18 22:54 UTC</div>
 <div id="layer"></div>
 <div id="chatdock"></div><div id="toast" role="status" aria-live="polite"></div>
 
@@ -10982,11 +10990,14 @@ const rpath = c => 'rooms/' + c;
 /* ---------- engine host (runs in the hot-seat device or the room host) ---------- */
 const host = {
   onChange() { if (!S.replaying) pushView(); },
-  ask(g, p, spec) { return new Promise(res => { const pe = S.pend = { kind: 'prompt', seq: ++S.seqN, p, spec, res }; pushView(); aiMaybe(pe); }); },
-  chooseTurnAction(g, p, info) { return new Promise(res => { const pe = S.pend = { kind: 'turn', seq: ++S.seqN, p, info, res }; S.selCard = null; S.inspect = null; pushView(); aiMaybe(pe); }); }
+  ask(g, p, spec) { return new Promise(res => { const pe = S.pend = { kind: 'prompt', seq: ++S.seqN, p, spec, res }; if (asyncFeed(pe)) return; pushView(); aiMaybe(pe); }); },
+  chooseTurnAction(g, p, info) { return new Promise(res => { const pe = S.pend = { kind: 'turn', seq: ++S.seqN, p, info, res }; if (asyncFeed(pe)) return; S.selCard = null; S.inspect = null; pushView(); aiMaybe(pe); }); }
 };
-const botLvl = p => (S.bots && S.bots[p]) || null;
-function aiMaybe(pe) { const lvl = botLvl(pe.p); if (!lvl) return;
+const botLvl = p => (S.bots && S.bots[p]) ? 'expert' : null;
+function aiMaybe(pe) { const lvl = botLvl(pe.p);
+  if (S.mode === 'async' && S.A) { const A0 = S.A; if (A0.verify && S.log.length === A0.verify.n) { if (stateChk(S.g) !== A0.verify.chk) { A0.mismatch = true; console.warn('async: board check differs from the saved game'); } A0.verify = null; }
+    if (!lvl) { const A = S.A; if (A.driver && !A.dirty && !A.writing) asyncSummary(); return; } if (!S.A.driver) { asyncBotWatch(); return; } }
+  if (!lvl) return;
   setTimeout(async function tick() { if (S.pend !== pe || !S.g) return; if (S.undoReq) { setTimeout(tick, 500); return; } let v;
     if (lvl === 'expert' && pe.kind === 'turn') { S.thinking = pe.p; render(); }
     try { v = await S.ai.act(pe, lvl); } catch (e) { console.error(e); v = pe.kind === 'turn' ? { type: 'end' } : null; }
@@ -10996,7 +11007,7 @@ function aiMaybe(pe) { const lvl = botLvl(pe.p); if (!lvl) return;
 const cr = c => ({ uid: c.uid, d: c.def ? c.def.id : c.id });
 function buildView() {
   const g = S.g, pe = S.pend;
-  const V = { seq: pe ? pe.seq : 0, cur: g.current, tm: [g.turn.minionsLeft, g.turn.actionsLeft], over: !!g.over, win: g.winner, log: g.logs.slice(-60), seats: S.seats, prompt: null, turn: null, cu: !g.over && S.log.some(e => e.h), undo: S.undoReq ? { by: S.undoReq.by, yes: S.undoReq.yes, need: S.undoReq.need, label: S.undoReq.label } : null,
+  const V = { seq: pe ? pe.seq : 0, cur: g.current, tm: [g.turn.minionsLeft, g.turn.actionsLeft], over: !!g.over, win: g.winner, log: g.logs.slice(-60), seats: S.seats, prompt: null, turn: null, cu: S.mode === 'async' ? asyncCanUndo() : (!g.over && S.log.some(e => e.h)), undo: S.undoReq ? { by: S.undoReq.by, yes: S.undoReq.yes, need: S.undoReq.need, label: S.undoReq.label } : null,
     players: g.players.map(pl => ({ name: pl.name, f: pl.factions, vp: pl.vp, deck: pl.deck.length, hand: pl.hand.map(cr), disc: pl.discard.map(c => c.def.id), na: !!(g.sleep[pl.idx] && g.sleep[pl.idx].noActions), bot: botLvl(pl.idx), ti: pl.titans.map(t => ({ uid: t.uid, d: t.def.id, on: !!t.base })), sta: pl.stasis.map(e => ({ d: e.card.def.id, n: e.counters })) })),
     pt: (g.turn.played || []).map(e => ({ uid: e.uid, d: e.d, p: e.p, tg: e.tg })), dk: { mad: g.madnessDeck.length, mon: g.monsterDeck.length, tr: g.treasureDeck.length }, uses: g.uses, adj: g.adjusted || null, mdn: g.madness || null, wins: g.winners || (g.winner != null ? [g.winner] : []),
     bases: g.bases.map(b => ({ uid: b.uid, d: b.def.id, pw: g.basePower(b), bp: g.breakpoint(b), on: g.baseActive(b),
@@ -11032,12 +11043,13 @@ function applyAnswer(msg, from) {
   if (from !== undefined && S.seats && from !== S.seats[pe.p]) return;
   const n = AI.toNative(S.g, pe, msg.v); if (!n.ok) return;
   S.log.push({ p: pe.p, k: pe.kind, v: msg.v === undefined ? null : msg.v, h: !botLvl(pe.p), label: labelOf(pe, msg.v) });
+  if (S.mode === 'async' && S.A) { if (from !== undefined) S.A.driver = true; asyncSave(from !== undefined); }
   S.pend = null; S.selCard = null; S.inspect = null; pushView(); pe.res(n.r); }
 
 async function send(v) {
   const seq = S.V.prompt ? S.V.prompt.seq : S.V.turn ? S.V.turn.seq : 0;
   if (S.mode === 'guest') { try { await FB.db.collection(rpath(S.room.code) + '/inbox').add({ uid: FB.uid, seq, v: v === undefined ? null : v }); } catch (e) { S.err = 'Could not send your move. Try again.'; render(); } }
-  else applyAnswer({ seq, v }, S.mode === 'host' ? FB.uid : undefined); }
+  else applyAnswer({ seq, v }, S.mode === 'host' || S.mode === 'async' ? FB.uid : undefined); }
 
 /* builds a game and fast-forwards it through the recorded answers; the first unrecorded question goes to the live players */
 function makeGame(log) {
@@ -11048,8 +11060,8 @@ function makeGame(log) {
     ask(gg, p, spec) { return step({ kind: 'prompt', p, spec }, () => host.ask(gg, p, spec)); },
     chooseTurnAction(gg, p, info) { return step({ kind: 'turn', p, info }, () => host.chooseTurnAction(gg, p, info)); } };
   S.replaying = log.length > 0; g = SU.createGame({ players: S.cfg.players, host: rh, seed: S.cfg.seed, first: S.cfg.first }); S.g = g; AI.hook(g); S.ai = AI.create(g, { SU, snapshot: () => ({ cfg: S.cfg, log: S.log.slice() }) });
-  g.run().then(async () => { if (S.g !== g) return; pushView(); if (S.mode === 'host' && S.room) { try { await FB.db.doc(rpath(S.room.code)).update({ status: 'done' }); } catch (e) {} } })
-    .catch(err => { if (S.g !== g) return; S.replaying = false; console.error(err); S.err = 'Something went wrong: ' + (err && err.message || err); render(); }); }
+  g.run().then(async () => { if (S.g !== g) return; S.replaying = false; pushView(); if (S.mode === 'async') asyncSave(); if (S.mode === 'host' && S.room) { try { await FB.db.doc(rpath(S.room.code)).update({ status: 'done' }); } catch (e) {} } })
+    .catch(err => { if (S.g !== g) return; S.replaying = false; console.error(err); S.err = S.mode === 'async' && /rewind/.test(String(err && err.message)) ? 'This game’s saved moves don’t fit this version of the rules, so it can’t be rebuilt here. (The page was updated while the game was in progress.)' : 'Something went wrong: ' + (err && err.message || err); render(); }); }
 function startEngine(players, mode, bots, first) {
   S.bots = bots || []; S.mode = mode; S.pend = null; S.seqN = 0; S.cover = null; S.seat = null; S.modal = null; lastW = ''; S.undoReq = null; S.log = [];
   S.cfg = { players, seed: Math.floor(Math.random() * 2147483647), first: first == null ? undefined : first }; S.screen = 'game'; ensureArt([...players.flatMap(p => p.factions), ...SPECIAL_DECKS]); makeGame([]); pushView(); }
@@ -11094,7 +11106,7 @@ function renderDraftPanel(D, canPickNow) {
   return h; }
 function draftAuto() {
   if (S.dtimer) return; let D = null, local = false;
-  if (S.screen === 'draft' && S.draft) { D = S.draft; local = true; } else if (S.screen === 'lobby' && S.room && S.room.isHost && S.room.draft) D = S.room.draft;
+  if (S.screen === 'draft' && S.draft) { D = S.draft; local = true; } else if (S.screen === 'lobby' && S.room && S.room.isHost && S.room.draft && !S.room.async) D = S.room.draft;
   if (!D || draftDone(D)) return; const k = draftCur(D);
   const isAi = local ? !!S.setup.players[+k.slice(1)].ai : String(k).startsWith('bot:'); if (!isAi) return;
   S.dtimer = setTimeout(() => { S.dtimer = null; const D2 = local ? S.draft : (S.room && S.room.draft); if (!D2 || draftCur(D2) !== k) return;
@@ -11117,9 +11129,10 @@ async function hostStartDraft() { const R = S.room; if (!R || !R.isHost || R.sta
   if (n < 2 || n > 4) { S.err = 'Need 2–4 players (people plus computer players).'; return render(); }
   const size = draftSize(n); S.dsize = size; const keys = [...ps.map(p => p.id), ...bots.map((b, i) => 'bot:' + i)];
   const D = { pool: makePool(size), keys, order: snakeOrder(n), picks: [], names: Object.fromEntries([...ps.map(p => [p.id, p.name]), ...bots.map((b, i) => ['bot:' + i, b.name])]) };
+  if (R.async) botDraftFill(D);
   R.draft = D; S.err = ''; render(); try { await FB.db.doc(rpath(R.code)).update({ draft: D }); } catch (e) { S.err = 'Could not start the draft.'; render(); } }
 async function hostCancelDraft() { const R = S.room; if (!R || !R.isHost) return; if (S.dtimer) { clearTimeout(S.dtimer); S.dtimer = null; } R.draft = null; render(); try { await FB.db.doc(rpath(R.code)).update({ draft: null }); } catch (e) {} }
-async function sendDraftPick(f) { const R = S.room; if (!R) return; if (R.isHost) return hostDraftPick(FB.uid, f);
+async function sendDraftPick(f) { const R = S.room; if (!R) return; if (R.async) return asyncDraftPick(f); if (R.isHost) return hostDraftPick(FB.uid, f);
   try { await FB.db.collection(rpath(R.code) + '/inbox').add({ uid: FB.uid, t: 'dpick', f }); } catch (e) { S.err = 'Could not send your pick. Try again.'; render(); } }
 
 
@@ -11137,7 +11150,7 @@ function nfFire(msg) {
   if (away) {
     clearInterval(NF.flash); let k = 0; document.title = '🔔 ' + msg; NF.flash = setInterval(() => { document.title = (k++ % 2 ? '🔔 ' : NF.base + ' · ') + msg; }, 1200);
     if (nfPerm() === 'granted') { try { const n = new Notification('Smash Up Table', { body: msg, tag: 'su-turn' }); n.onclick = () => { try { window.focus(); } catch (e) {} n.close(); }; } catch (e) {} } } }
-function nfClear() { if (NF.flash) { clearInterval(NF.flash); NF.flash = null; document.title = NF.base; } }
+function nfClear() { if (NF.flash) { clearInterval(NF.flash); NF.flash = null; document.title = (S.myBadge ? '(' + S.myBadge + ') ' : '') + NF.base; } }
 window.addEventListener('focus', nfClear); document.addEventListener('visibilitychange', () => { if (!document.hidden) nfClear(); });
 function nfCheck() {
   let turn = false, ask = false, msg = '';
@@ -11184,19 +11197,25 @@ function chatSubscribe(db, rp, room) {
 const CODE_CH = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 const newCode = () => Array.from({ length: 4 }, () => CODE_CH[Math.floor(Math.random() * CODE_CH.length)]).join('');
 function leaveRoom() {
+  const A = S.A; if (A && (A.dirty || A.writing)) { S.busy = true; render(); const done = () => { S.busy = false; if (S.A === A) { A.dirty = false; A.writing = false; } leaveRoom(); }; (A.writing ? new Promise(r => setTimeout(r, 1500)) : asyncFlush()).then(done, done); return; }
+  const wasA = !!(S.room && S.room.async); S.A = null;
   S.undoReq = null;
   if (S.room) S.room.unsubs.forEach(u => { try { u(); } catch (e) {} });
-  S.room = null; S.chat = { msgs: [], open: false, seen: 0 }; S.g = null; S.V = null; S.pend = null; S.mode = null; S.seats = null; S.screen = 'home'; S.err = ''; S.modal = null; render(); }
-async function enterRoom(code, isHost) {
-  const db = FB.db, rp = rpath(code), room = { code, isHost, players: [], status: 'lobby', hostId: null, unsubs: [] };
+  S.room = null; S.chat = { msgs: [], open: false, seen: 0 }; S.g = null; S.V = null; S.pend = null; S.mode = null; S.seats = null; S.screen = wasA ? 'mygames' : 'home'; S.err = ''; S.modal = null; render(); if (wasA) asyncLoadMine(); }
+async function enterRoom(code, isHost, isAsync) {
+  const db = FB.db, rp = rpath(code), room = { code, isHost, async: !!isAsync, players: [], status: 'lobby', hostId: null, unsubs: [] };
   S.room = room; S.screen = 'lobby'; S.err = '';
   const name = (S.myName || 'Player').trim().slice(0, 18) || 'Player';
   const mine = db.doc(rp + '/players/' + FB.uid); const cur = await mine.get();
   if (!cur.exists) await mine.set({ name, f: [], t: Date.now() }); else await mine.update({ name });
-  room.unsubs.push(db.doc(rp).onSnapshot(s => { if (!s.exists) return; const d = s.data(); room.status = d.status; room.hostId = d.host; room.bots = d.bots || []; room.draft = d.draft || null; render(); }, () => {}));
+  room.unsubs.push(db.doc(rp).onSnapshot(s => { if (!s.exists) return; const d = s.data(); room.status = d.status; room.hostId = d.host; room.bots = d.bots || []; room.draft = d.draft || null;
+    if (d.async && d.status !== 'lobby' && d.cfg) { if (!S.A || S.A.code !== code) asyncBoot(code, d); else { S.A.keys = d.keys || []; if (JSON.stringify(d.seats) !== JSON.stringify(S.seats)) { S.seats = d.seats.slice(); pushView(); } } }
+    render(); }, () => {}));
   room.unsubs.push(db.collection(rp + '/players').onSnapshot(q => { room.players = q.docs.map(d => Object.assign({ id: d.id }, d.data())).sort((a, b) => a.t - b.t); render(); }, () => {}));
   chatSubscribe(db, rp, room);
-  if (isHost) { let first = true;
+  if (isAsync) rememberGame(code);
+  if (isAsync) {}
+  else if (isHost) { let first = true;
     room.unsubs.push(db.collection(rp + '/inbox').onSnapshot(q => { const ch = q.docChanges().filter(c => c.type === 'added'); const stale = first; first = false;
       for (const c of ch) { const d = c.doc.data(); if (!stale) { if (d.t === 'dpick') hostDraftPick(d.uid, d.f); else if (d.t === 'undo') reqUndo(seatOfUid(d.uid)); else if (d.t === 'vote') voteUndo(seatOfUid(d.uid), !!d.yes); else applyAnswer({ seq: d.seq, v: d.v }, d.uid); } db.doc(rp + '/inbox/' + c.doc.id).delete().catch(() => {}); } }, () => {})); }
   else room.unsubs.push(db.doc(rp + '/state/view').onSnapshot(s => { if (!s.exists) return; S.mode = 'guest'; S.V = s.data(); S.seats = S.V.seats; S.screen = 'game'; artFor(S.V); render(); }, () => {}));
@@ -11210,7 +11229,7 @@ async function createRoom() {
 async function joinRoom() {
   if (S.busy) return; const code = S.joinCode.trim().toUpperCase(); if (code.length !== 4) { S.err = 'Room codes are 4 letters.'; render(); return; }
   S.busy = true; S.err = ''; render();
-  try { if (await initOnline()) { const r = await FB.db.doc(rpath(code)).get(); if (!r.exists) S.err = 'No room with that code.'; else await enterRoom(code, r.data().host === FB.uid); } }
+  try { if (await initOnline()) { const r = await FB.db.doc(rpath(code)).get(); if (!r.exists) S.err = 'No room with that code.'; else await enterRoom(code, r.data().host === FB.uid, !!r.data().async); } }
   catch (e) { S.err = 'Could not join the room.'; }
   S.busy = false; render(); }
 function lobbyOk() {
@@ -11221,12 +11240,180 @@ function lobbyOk() {
 async function hostStart() {
   const bad = lobbyOk(); if (bad || S.room.status !== 'lobby') return;
   const ps = S.room.players, bots = S.room.bots || []; const used = new Set(ps.flatMap(p => p.f)); const free = fkeys().filter(f => !used.has(f)).sort(() => Math.random() - .5);
-  S.seats = [...ps.map(p => p.id), ...bots.map((b, i) => 'bot:' + i)];
-  try { await FB.db.doc(rpath(S.room.code)).update({ status: 'playing' }); } catch (e) { S.err = 'Could not start.'; render(); return; }
+  const seats = [...ps.map(p => p.id), ...bots.map((b, i) => 'bot:' + i)];
   const Dr = S.room.draft; const list = Dr ? [...ps.map(p => ({ name: p.name, factions: draftFacs(Dr, p.id) })), ...bots.map((b, i) => ({ name: b.name, factions: draftFacs(Dr, 'bot:' + i) }))] : [...ps.map(p => ({ name: p.name, factions: p.f.slice() })), ...bots.map((b, i) => ({ name: b.name, factions: [free[i * 2], free[i * 2 + 1]] }))];
+  if (S.room.async) { const keys = seats.map(x => String(x).startsWith('bot:') ? null : seatKey()); S.asyncDrive = S.room.code;
+    try { await FB.db.doc(rpath(S.room.code)).update({ status: 'playing', cfg: { players: list, seed: Math.floor(Math.random() * 2147483647), first: Dr ? 0 : null }, seats, bl: [...ps.map(() => null), ...bots.map(b => b.lvl)], keys, ver: RULES_VER }); }
+    catch (e) { S.asyncDrive = null; S.err = 'Could not start.'; render(); } return; }
+  S.seats = seats;
+  try { await FB.db.doc(rpath(S.room.code)).update({ status: 'playing' }); } catch (e) { S.err = 'Could not start.'; render(); return; }
   startEngine(list, 'host', [...ps.map(() => null), ...bots.map(b => b.lvl)], Dr ? 0 : null); }
 const BOT_NAMES = ['Ada', 'Bix', 'Cog', 'Dot'];
 function setBots(bots) { S.room.bots = bots; render(); FB.db.doc(rpath(S.room.code)).update({ bots }).catch(() => {}); }
+
+/* ---------- async games: play at your own pace ----------
+   The game is the room's setup (players, seed) plus a shared list of every answer. Every browser rebuilds the game from that list,
+   so nobody has to keep a tab open: whoever the game is waiting on opens it, answers, and the new answers are saved for the next person.
+   Storage: rooms/<code>/state/head {rev, n, tag, t, fp[]} and rooms/<code>/state/c000, c001, … {m: [answers]} (CH answers per chunk). */
+const RULES_VER = 'c79d7b41e0';
+const CH = 200;
+const ahash = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(16); };
+const sameE = (a, b) => a && b && a.p === b.p && a.k === b.k && JSON.stringify(a.v === undefined ? null : a.v) === JSON.stringify(b.v === undefined ? null : b.v);
+const cid = i => 'c' + String(i).padStart(3, '0');
+const stateChk = g => ahash(JSON.stringify([g.current, g.players.map(p => [p.vp, p.hand.length, p.deck.length, p.discard.length]), g.bases.map(b => [b.def.id, b.minions.map(m => m.def.id + ':' + g.powerOf(m))])]));
+const myIdx = () => 'rooms/U-' + String(FB.uid).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120);
+const seatKey = () => Array.from({ length: 6 }, () => 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 31)]).join('');
+function asyncBoot(code, d) {
+  const A = S.A = { code, ver: d.ver || '', keys: d.keys || [], unsub: null, booted: false, remote: [], chunks: [], cfp: [], lastTag: null, rev: 0, dirty: false, writing: false, again: false, dirtyAt: 0,
+    driver: S.asyncDrive === code, inq: [], feeding: false, pulling: false, nextHead: undefined, ft: null, toT: null, sumJ: '', headAt: Date.now() };
+  S.asyncDrive = null;
+  S.mode = 'async'; S.cfg = { players: d.cfg.players, seed: d.cfg.seed, first: d.cfg.first == null ? undefined : d.cfg.first }; S.seats = d.seats.slice(); S.bots = (d.bl || []).map(x => x || null);
+  S.pend = null; S.seqN = 0; S.cover = null; S.seat = null; S.modal = null; S.undoReq = null; S.log = []; S.screen = 'game'; S.err = '';
+  ensureArt([...S.cfg.players.flatMap(p => p.factions), ...SPECIAL_DECKS]);
+  A.unsub = FB.db.doc(rpath(code) + '/state/head').onSnapshot(s => asyncOnHead(s.exists ? s.data() : null), () => {});
+  if (S.room) S.room.unsubs.push(() => { if (A.unsub) { try { A.unsub(); } catch (e) {} A.unsub = null; } clearTimeout(A.ft); clearTimeout(A.toT); });
+  rememberGame(code); render(); }
+/* a new head arrived: fetch the chunks that changed, then catch up, rebuild or note a conflict */
+async function asyncOnHead(hd) {
+  const A = S.A; if (!A) return;
+  if (A.pulling) { A.nextHead = hd; return; }
+  if (hd && A.booted && hd.tag === A.lastTag) return;          // our own write coming back
+  if (!hd && A.booted) return;
+  A.pulling = true; A.headAt = !A.booted && hd && hd.t ? Math.min(Date.now(), hd.t) : Date.now(); clearTimeout(A.toT);
+  try {
+    let R = [];
+    if (hd && hd.n) { const nC = Math.ceil(hd.n / CH), fp = hd.fp || [], need = [];
+      for (let i = 0; i < nC; i++) if (A.cfp[i] !== fp[i] || !A.chunks[i]) need.push(i);
+      const got = await Promise.all(need.map(i => FB.db.doc(rpath(A.code) + '/state/' + cid(i)).get()));
+      need.forEach((i, j) => { const s = got[j]; A.chunks[i] = s.exists ? (s.data().m || []) : []; A.cfp[i] = fp[i]; });
+      A.chunks.length = nC; A.cfp.length = nC; R = [].concat(...A.chunks).slice(0, hd.n); }
+    if (S.A !== A) return;
+    const first = !A.booted, wasDirty = A.dirty || A.writing; A.booted = true;
+    A.remote = R; A.lastTag = hd ? hd.tag : null; A.rev = hd ? hd.rev || 0 : 0; A.verify = hd && hd.chk ? { n: hd.n, chk: hd.chk } : null;
+    const L = S.log; let k = 0; while (k < L.length && k < R.length && sameE(L[k], R[k])) k++;
+    if (first) { S.log = R.slice(); makeGame(R.slice()); }
+    else if (wasDirty) {
+      if (k === R.length) { /* what is saved is a prefix of ours: keep our newer moves and save on top */ A.dirty = true; asyncSave(true); }
+      else { A.dirty = false; A.again = false; nfToast('Another move was saved first, so the game reloaded from the saved moves.'); asyncRebuild(R); } }
+    else if (k === L.length && R.length > L.length) { A.driver = false; A.inq.push(...R.slice(L.length)); asyncFeedPending(); }
+    else if (k < L.length || R.length !== L.length) { A.driver = false; asyncRebuild(R); }
+  } catch (e) { console.error(e); S.err = 'Could not load the latest moves. Check your connection.'; render(); }
+  finally { A.pulling = false; }
+  if (A.nextHead !== undefined) { const h2 = A.nextHead; A.nextHead = undefined; asyncOnHead(h2); }
+  else asyncBotWatch(); }
+function asyncRebuild(R) { S.log = R.slice(); S.pend = null; S.selCard = null; S.inspect = null; const A = S.A; if (A) { A.inq = []; A.feeding = false; } makeGame(R.slice()); }
+/* feed answers that arrived from the database to the question the game is waiting on */
+function asyncFeed(pe) {
+  const A = S.A; if (S.mode !== 'async' || !A) return false;
+  if (!A.inq.length) { if (A.feeding) { A.feeding = false; S.replaying = false; } return false; }
+  const e = A.inq.shift(); const n = AI.toNative(S.g, pe, e.v);
+  if (!n.ok || e.p !== pe.p || e.k !== pe.kind) { const R = A.remote.slice(); setTimeout(() => asyncRebuild(R), 0); return true; }
+  S.log.push(e); S.pend = null; pe.res(n.r); return true; }
+function asyncFeedPending() { const A = S.A, pe = S.pend; if (!A || !A.inq.length) return; if (!pe) return;   // the engine asks next; host.ask feeds it
+  A.feeding = true; S.replaying = true; asyncFeed(pe); }
+/* save: coalesce a run of computer-player answers, save at once when a person is up */
+function asyncSave(now) { const A = S.A; if (!A) return; if (!A.dirty) A.dirtyAt = Date.now(); A.dirty = true; if (now) A.humanDirty = true; clearTimeout(A.ft); A.ft = setTimeout(asyncTick, now ? 0 : 300); }
+function asyncTick() { const A = S.A; if (!A || !A.dirty) return; if (!S.pend && !(S.g && S.g.over) && Date.now() - A.dirtyAt < 1500) { A.ft = setTimeout(asyncTick, 60); return; } if (A.humanDirty) return void asyncFlush(); const botUp = S.pend && botLvl(S.pend.p) && !(S.g && S.g.over);
+  if (botUp && Date.now() - A.dirtyAt < 4000) { A.ft = setTimeout(asyncTick, 600); return; } asyncFlush(); }
+async function asyncFlush() {
+  const A = S.A; if (!A || !A.booted) return; if (A.writing) { A.again = true; return; } if (!A.dirty) return;
+  A.writing = true; A.dirty = false; A.humanDirty = false; A.again = false; clearTimeout(A.ft);
+  const L = S.log.map(e => ({ p: e.p, k: e.k, v: e.v === undefined ? null : e.v, h: !!e.h, label: String(e.label || '').slice(0, 80) })); const chk = S.pend && S.g ? stateChk(S.g) : null;
+  try {
+    const hs = await FB.db.doc(rpath(A.code) + '/state/head').get(); const hd = hs.exists ? hs.data() : null;
+    if (S.A !== A) return;
+    if ((hd ? hd.tag : null) !== A.lastTag) { A.writing = false; A.dirty = true; return asyncOnHead(hd); }   // someone else saved since we last looked
+    const nC = Math.ceil(L.length / CH), fp = [], chunks = [];
+    for (let i = 0; i < nC; i++) { chunks[i] = L.slice(i * CH, (i + 1) * CH); fp[i] = ahash(JSON.stringify(chunks[i])) + ':' + chunks[i].length; }
+    for (let i = 0; i < nC; i++) if (fp[i] !== A.cfp[i]) await FB.db.doc(rpath(A.code) + '/state/' + cid(i)).set({ i, m: chunks[i] });
+    const tag = Math.random().toString(36).slice(2, 10), rev = (hd ? hd.rev || 0 : 0) + 1;
+    A.lastTag = tag; await FB.db.doc(rpath(A.code) + '/state/head').set({ rev, n: L.length, tag, t: Date.now(), fp, by: FB.uid, chk });
+    A.rev = rev; A.cfp = fp; A.chunks = chunks; A.remote = L; S.err = '';
+    asyncSummary();
+  } catch (e) { console.error(e); A.dirty = true; S.err = 'Could not save your move yet. Retrying…'; render(); setTimeout(asyncTick, 3000); }
+  finally { A.writing = false; }
+  if (A.again || A.dirty) asyncSave(); }
+/* the room document carries a short summary for the My games list */
+function asyncSummary() {
+  const A = S.A, g = S.g; if (!A || !g || !S.room) return; const pe = S.pend;
+  const sum = { n: S.log.length, wait: pe ? pe.p : null, waitUid: pe && !botLvl(pe.p) ? S.seats[pe.p] : null, turn: !!(pe && pe.kind === 'turn'), cur: g.current, over: !!g.over,
+    wins: g.winners || (g.winner != null ? [g.winner] : []), vp: g.players.map(p => p.vp), names: g.players.map(p => p.name) };
+  const j = JSON.stringify(sum); if (j === A.sumJ) return; A.sumJ = j; sum.t = Date.now();
+  FB.db.doc(rpath(A.code)).update({ sum, status: g.over ? 'done' : 'playing' }).catch(() => {}); }
+/* computer players: the browser that made the last move plays them; if that browser went away, another one takes over */
+function asyncBotWatch() { const A = S.A, pe = S.pend; if (!A || !pe || !botLvl(pe.p) || A.driver || (S.g && S.g.over)) return;
+  clearTimeout(A.toT); const wait = Math.max(0, A.headAt + 12000 - Date.now());
+  A.toT = setTimeout(() => { if (S.A !== A || S.pend !== pe || A.driver) return; if (Date.now() - A.headAt < 12000) return asyncBotWatch(); A.driver = true; aiMaybe(pe); }, wait + Math.random() * (wait ? 5000 : 1500)); }
+function asyncCanUndo() { const A = S.A, g = S.g; if (!A || !g || g.over || A.feeding) return false; const me = S.seats ? S.seats.indexOf(FB.uid) : -1; if (me < 0) return false;
+  for (let k = S.log.length - 1; k >= 0; k--) if (S.log[k].h) return S.log[k].p === me; return false; }
+function asyncUndo() { if (!asyncCanUndo()) return; let k = S.log.length - 1; while (k >= 0 && !S.log[k].h) k--; if (k < 0) return;
+  /* take back the whole play: back to the turn choice that started it, as long as nobody else answered in between */
+  const me = S.log[k].p; for (let j = k; j >= 0; j--) { const e = S.log[j]; if (e.h && e.p !== me) break; if (e.p === me && e.k === 'turn') { k = j; break; } }
+  const A = S.A; const label = S.log[k].label; A.driver = true; S.log.length = k; S.pend = null; S.selCard = null; S.inspect = null; A.inq = []; makeGame(S.log.slice()); asyncSave(); nfToast('Took back: ' + label); }
+/* My games: rooms/U-<you> lists the async games you are in */
+async function rememberGame(code, drop) {
+  try { const r = FB.db.doc(myIdx()), s = await r.get(), d = s.exists ? s.data() : { games: {} }; const gm = Object.assign({}, d.games || {});
+    if (drop) { if (!(code in gm)) return; delete gm[code]; } else { if (code in gm) return; gm[code] = Date.now(); }
+    await r.set({ games: gm }); try { localStorage.setItem('suAsync', '1'); } catch (e) {} if (S.my) asyncLoadMine(); } catch (e) {} }
+async function asyncLoadMine() {
+  if (!(await initOnline())) { render(); return; }
+  const M = S.my = S.my || { rows: {}, subs: {}, loaded: false };
+  try { const s = await FB.db.doc(myIdx()).get(); const codes = Object.keys((s.exists && s.data().games) || {});
+    for (const c of Object.keys(M.subs)) if (!codes.includes(c)) { try { M.subs[c](); } catch (e) {} delete M.subs[c]; delete M.rows[c]; }
+    for (const c of codes.slice(0, 40)) if (!M.subs[c]) M.subs[c] = FB.db.doc(rpath(c)).onSnapshot(x => { M.rows[c] = x.exists ? x.data() : { gone: true }; myBadge(); if (S.screen === 'mygames') render(); }, () => {});
+    M.loaded = true; } catch (e) { S.err = 'Could not load your games.'; }
+  myBadge(); if (S.screen === 'mygames') render(); }
+function myWaiting(d) { if (!d || d.gone || !d.async) return false; if (d.status === 'playing') return !!(d.sum && d.sum.waitUid === FB.uid) || (!d.sum && d.host === FB.uid);
+  if (d.status === 'lobby' && d.draft && !draftDone(d.draft)) return draftCur(d.draft) === FB.uid; return false; }
+function myBadge() { const M = S.my; const n = M ? Object.values(M.rows).filter(myWaiting).length : 0; const was = S.myBadge; S.myBadge = n; if (NF.on && was != null && n > was && S.screen !== 'game') nfFire(n === 1 ? 'A game is waiting on you.' : n + ' games are waiting on you.'); if (!NF.flash) document.title = (n ? '(' + n + ') ' : '') + NF.base; }
+function ago(t) { if (!t) return ''; const s = Math.max(0, (Date.now() - t) / 1000); return s < 90 ? 'just now' : s < 5400 ? Math.round(s / 60) + ' min ago' : s < 129600 ? Math.round(s / 3600) + ' h ago' : Math.round(s / 86400) + ' days ago'; }
+function renderMyGames() {
+  const M = S.my || { rows: {}, loaded: false };
+  const rows = Object.entries(M.rows).filter(([, d]) => !d.gone).map(([c, d]) => ({ c, d, w: myWaiting(d), t: (d.sum && d.sum.t) || d.t || 0 }))
+    .sort((a, b) => (b.w - a.w) || ((a.d.status === 'done') - (b.d.status === 'done')) || (b.t - a.t));
+  const names = d => d.sum && d.sum.names ? d.sum.names : d.cfg ? d.cfg.players.map(p => p.name) : [];
+  const status = (r) => { const d = r.d, s = d.sum;
+    if (d.status === 'lobby') return d.draft && !draftDone(d.draft) ? (r.w ? 'Your pick in the draft' : 'Drafting factions') : (d.host === FB.uid ? 'In the lobby — start it when everyone has joined' : 'In the lobby — waiting for the host to start');
+    if (d.status === 'done' || (s && s.over)) { const w = s && s.wins ? s.wins.map(i => s.names[i]).join(' and ') : ''; return w ? `Finished — ${esc(w)} won` : 'Finished'; }
+    if (!s) return r.w ? 'Your move' : 'Starting…';
+    if (r.w) return s.turn ? 'Your turn' : 'The game needs your answer';
+    return s.wait != null ? `Waiting for ${esc(s.names[s.wait] || '…')}` : 'Computer players are moving'; };
+  let h = `<header class="hero"><h1 class="logo" style="font-size:clamp(40px,11vw,76px)"><span class="a">MY</span><span class="b">GAMES</span></h1>
+    <p class="tag">Async games wait for whoever is up. Open one when it says it’s your turn, make your move, and close it. Nobody has to stay online.</p></header>${errBox()}
+    <div class="row" style="margin:14px 0"><button class="btn primary" data-act="acreate" ${S.busy ? 'disabled' : ''}>Start a new async game</button>
+      <input type="text" id="acode" value="${esc(S.joinCode)}" maxlength="4" placeholder="CODE" aria-label="Game code" data-in="joinCode" style="width:7.5em;text-transform:uppercase;font:600 16px var(--mono);letter-spacing:.2em;padding:10px 12px;border-radius:9px;border:1.5px solid var(--line);background:var(--surface-2);color:var(--ink)">
+      <button class="btn" data-act="join" ${S.busy ? 'disabled' : ''}>Join with a code</button><button class="btn ghost" data-act="notify" aria-pressed="${NF.on}" title="Chime and notify while this page is open when a game starts waiting on you">${NF.on ? 'Alerts: on' : 'Alert me'}</button><button class="btn ghost" data-act="home">Back</button></div>`;
+  if (!M.loaded) h += `<div class="empty">Loading your games…</div>`;
+  else if (!rows.length) h += `<div class="empty">No async games yet. Start one and send the code to your friends.</div>`;
+  else h += `<ul class="mglist">${rows.map(r => { const d = r.d, nm = names(d);
+    return `<li class="mg ${r.w ? 'up' : ''}"><div class="mgi"><b>${nm.length ? nm.map(esc).join(' · ') : 'Game ' + esc(r.c)}</b><span class="btxt">${status(r)}${r.t ? ' · ' + ago(r.t) : ''} · code <span class="mono">${esc(r.c)}</span></span></div>
+      <div class="row">${r.w ? '<span class="chip yt">Your turn</span>' : ''}<button class="btn ${r.w ? 'primary' : ''}" data-act="aopen" data-c="${esc(r.c)}">Open</button><button class="btn ghost" data-act="aremove" data-c="${esc(r.c)}" aria-label="Remove ${esc(r.c)} from my list">Remove</button></div></li>`; }).join('')}</ul>`;
+  return h; }
+async function asyncCreate() {
+  if (S.busy) return; S.busy = true; S.err = ''; render();
+  try { if (await initOnline()) { let code = newCode(); for (let i = 0; i < 5; i++) { if (!(await FB.db.doc(rpath(code)).get()).exists) break; code = newCode(); }
+      await FB.db.doc(rpath(code)).set({ host: FB.uid, status: 'lobby', t: Date.now(), async: true }); await enterRoom(code, true, true); rememberGame(code); } }
+  catch (e) { S.err = 'Could not create the game.'; }
+  S.busy = false; render(); }
+async function openByCode(code) {
+  if (S.busy) return; S.busy = true; S.err = ''; render();
+  try { if (await initOnline()) { const r = await FB.db.doc(rpath(code)).get(); if (!r.exists) S.err = 'That game no longer exists.'; else { const d = r.data(); await enterRoom(code, d.host === FB.uid, !!d.async); } } }
+  catch (e) { S.err = 'Could not open the game.'; }
+  S.busy = false; render(); }
+async function claimSeat() {
+  const inp = document.getElementById('skey'); const key = inp ? inp.value.trim().toUpperCase() : ''; const A = S.A; if (!A || !key) return;
+  try { const s = await FB.db.doc(rpath(A.code)).get(); const d = s.data(); const i = (d.keys || []).indexOf(key);
+    if (i < 0) { S.err = 'That seat key doesn’t match any seat in this game.'; return render(); }
+    const seats = d.seats.slice(); seats[i] = FB.uid; await FB.db.doc(rpath(A.code)).update({ seats }); S.seats = seats; S.err = ''; rememberGame(A.code); pushView(); nfToast('You’re back in your seat.'); }
+  catch (e) { S.err = 'Could not claim the seat.'; render(); } }
+async function asyncDraftPick(f) { const R = S.room, D = R && R.draft; if (!D || draftCur(D) !== FB.uid || !D.pool.includes(f) || D.picks.some(p => p.f === f)) return;
+  D.picks.push({ k: FB.uid, f }); botDraftFill(D); render(); try { await FB.db.doc(rpath(R.code)).update({ draft: D }); } catch (e) { S.err = 'Could not save that pick.'; render(); } }
+function asyncNote(V, me, waitP) { const A = S.A; if (!A) return ''; let t = '';
+  if (A.mismatch) t += `<div class="anote warn">This page rebuilt the saved game slightly differently from the version that saved it (the page was probably updated mid-game), so the board may not match what the others see. Finishing the game on the same version avoids this.</div>`;
+  else if (A.ver && RULES_VER.indexOf('__') !== 0 && A.ver !== RULES_VER) t += `<div class="anote warn">This game was started on an earlier version of the rules. It should still load; if moves ever stop loading, tell whoever updates the page.</div>`;
+  if (!V.over && me >= 0 && waitP != null && waitP !== me) t += `<div class="anote">Waiting for ${pn(waitP)}. You can close this page; the game waits, and My games shows when it’s your turn again.</div>`;
+  return t; }
+function botDraftFill(D) { while (!draftDone(D) && String(draftCur(D)).startsWith('bot:')) { const left = D.pool.filter(f => !D.picks.some(p => p.f === f)); D.picks.push({ k: draftCur(D), f: left[Math.floor(Math.random() * left.length)] }); } }
 
 /* ---------- view helpers ---------- */
 const V_ = () => S.V;
@@ -11257,13 +11444,16 @@ function renderHome() {
         <input type="text" id="oname" value="${esc(S.myName)}" maxlength="18" placeholder="Your name" aria-label="Your name" data-in="myName">
         <div class="row"><button class="btn primary" data-act="create" ${S.busy ? 'disabled' : ''}>Create a room</button></div>
         <div class="row"><input type="text" id="ocode" value="${esc(S.joinCode)}" maxlength="4" placeholder="CODE" aria-label="Room code" data-in="joinCode" style="width:7.5em;text-transform:uppercase;font-family:var(--mono);letter-spacing:.2em">
-          <button class="btn" data-act="join" ${S.busy ? 'disabled' : ''}>Join</button></div></section></div>
+          <button class="btn" data-act="join" ${S.busy ? 'disabled' : ''}>Join</button></div></section>
+      <section class="pcard"><h3 class="h3">Async games${S.myBadge ? ` <span class="chip yt">${S.myBadge} waiting on you</span>` : ''}</h3><p class="btxt" style="margin:0">Play at your own pace. Each player moves whenever they’re free; the game waits for whoever is up, and nobody has to stay online.</p>
+        <div class="row"><button class="btn primary" data-act="mygames">My games</button><button class="btn" data-act="acreate" ${S.busy ? 'disabled' : ''}>Start an async game</button></div></section></div>
     <details class="rules"><summary>Rules at a glance</summary><ul>
       <li>Each turn: play one minion and one action (any order), use talents, then bases at their breakpoint score, you draw 2, and play passes left.</li>
       <li>Top three in power on a scoring base earn its VP (for example 4/2/1). Ties share the higher place.</li>
       <li>First to 15 VP at the end of a turn wins. A tie at the top keeps the game going. With Madness cards in the game, every 2 Madness cards you own cost 1 VP at the end.</li>
       <li>Factions: pick from the searchable list of all released factions. Ones marked “Coming soon” are still being built; more become playable with each update.</li>
-      <li>Online: friends need a Claude account and Contributor access to this page. Hands are hidden in the interface but are not encrypted, so play with people you trust.</li></ul></details>`; }
+      <li>Online: anyone who opens this site can create and join rooms. Hands are hidden in the interface but are not encrypted, so play with people you trust.</li>
+      <li>Async games: the game waits for whoever is up, so friends can move whenever they are free. My games shows which games are waiting on you. Undo takes back your last play if nobody else has moved since.</li></ul></details>`; }
 
 const coverStyle = (id, px) => { const m = META.byId[id]; if (!m || !m.cover) return FACTIONS[id] && FACTIONS[id].wip ? `background:linear-gradient(135deg,${fcol(id)},#1b1d24)` : ''; const k = px / 120; return `background-image:url(covers.webp);background-size:${1200 * k}px ${1080 * k}px;background-position:-${m.cover.x * k}px -${m.cover.y * k}px`; };
 function slots(ctx, f) { return `<div class="slots">${[0, 1].map(s => { const id = f[s];
@@ -11294,7 +11484,7 @@ function renderSetup() {
     <div class="row" style="margin-top:18px"><button class="btn ghost" data-act="home">Back</button><span class="label">Players</span><div class="seg" role="group" aria-label="Number of players">${[2, 3, 4].map(n => `<button data-act="n" data-n="${n}" aria-pressed="${s.n === n}">${n}</button>`).join('')}</div>
     <button class="btn ghost" data-act="rand">Deal random factions</button></div><div class="setup-grid">`;
   for (let i = 0; i < s.n; i++) { const p = s.players[i];
-    h += `<section class="pcard"><div class="seg" role="group" aria-label="Player ${i + 1} type">${[['human', 'Human'], ['easy', 'AI easy'], ['normal', 'AI normal'], ['hard', 'AI hard'], ['expert', 'AI expert']].map(([k, l]) => `<button data-act="ptype" data-i="${i}" data-t="${k}" aria-pressed="${(p.ai || 'human') === k}">${l}</button>`).join('')}</div>
+    h += `<section class="pcard"><div class="seg full" role="group" aria-label="Player ${i + 1} type">${[['human', 'Human'], ['expert', 'Computer']].map(([k, l]) => `<button data-act="ptype" data-i="${i}" data-t="${k}" aria-pressed="${(p.ai ? 'expert' : 'human') === k}">${l}</button>`).join('')}</div>
       <input type="text" value="${esc(p.name)}" maxlength="18" aria-label="Player ${i + 1} name" data-pn="${i}">
       <div class="label">Factions (${p.f.length}/2)</div>${slots({ t: 'local', i }, p.f)}
       <div class="btxt">${p.f.map(f => esc(fblurb(f))).join(' ')}</div></section>`; }
@@ -11303,7 +11493,8 @@ function renderSetup() {
 
 function renderLobby() {
   const R = S.room, ps = R.players, bad = lobbyOk(), bots = R.bots || []; const usedByOthers = id => new Set(ps.filter(p => p.id !== id).flatMap(p => p.f || []));
-  let h = `<header class="hero"><div class="label">Room code</div><h1 class="logo" style="font-size:clamp(54px,16vw,110px);letter-spacing:.12em"><span class="a">${esc(R.code)}</span></h1>
+  let h = R.async ? `<header class="hero"><div class="label">Async game · code</div><h1 class="logo" style="font-size:clamp(54px,16vw,110px);letter-spacing:.12em"><span class="a">${esc(R.code)}</span></h1>
+    <p class="tag">Friends join from My games with this code, any time before you start. Pick your two factions below (or run a snake draft); the creator starts the game. After that everyone moves when they can — the game waits for whoever is up.</p></header>${errBox()}` : `<header class="hero"><div class="label">Room code</div><h1 class="logo" style="font-size:clamp(54px,16vw,110px);letter-spacing:.12em"><span class="a">${esc(R.code)}</span></h1>
     <p class="tag">Friends open this same page, choose Online, and type the code. Pick your two factions below (or let the host run a snake draft); the room creator starts the game.</p></header>${errBox()}`;
   const Dr = R.draft; if (Dr) { h += renderDraftPanel(Dr, draftCur(Dr) === FB.uid); if (R.isHost && R.status === 'lobby') h += `<div class="row" style="margin:10px 0"><button class="btn ghost" data-act="dcancel">Cancel the draft</button></div>`; }
   else h += `<div class="setup-grid">`;
@@ -11311,14 +11502,14 @@ function renderLobby() {
     h += `<section class="pcard">${me ? `<input type="text" value="${esc(p.name)}" maxlength="18" aria-label="Your name" data-lname="1">` : `<div style="font:700 17px var(--body)">${esc(p.name)}${p.id === R.hostId ? ' <span class="chip">host</span>' : ''}</div>`}
       ${me ? `<div class="label">Factions (${f.length}/2)</div>${slots({ t: 'lobby', i: 0 }, f)}`
         : `<div class="fs">${f.length ? f.map(chip).join(' ') : '<span class="btxt">Choosing factions…</span>'}</div>`}</section>`; }
-  if (!Dr) for (const [i, b] of bots.entries()) h += `<section class="pcard"><div style="font:700 17px var(--body)">${esc(b.name)} <span class="chip">AI ${b.lvl}</span></div><div class="btxt">Gets two random factions when the game starts.</div>${R.isHost && R.status === 'lobby' ? `<div><button class="btn ghost" data-act="rmbot" data-i="${i}">Remove</button></div>` : ''}</section>`;
+  if (!Dr) for (const [i, b] of bots.entries()) h += `<section class="pcard"><div style="font:700 17px var(--body)">${esc(b.name)} <span class="chip">Computer</span></div><div class="btxt">Gets two random factions when the game starts.</div>${R.isHost && R.status === 'lobby' ? `<div><button class="btn ghost" data-act="rmbot" data-i="${i}">Remove</button></div>` : ''}</section>`;
   if (!Dr) h += `</div>`;
   if (R.isHost && R.status === 'lobby' && !Dr) h += `${draftBox(ps.length + bots.length || 2)}`;
-  if (R.isHost && R.status === 'lobby' && !Dr) h += `<div class="row" style="margin-top:16px"><span class="label">Add a computer player</span>${['easy', 'normal', 'hard', 'expert'].map(l => `<button class="btn" data-act="addbot" data-l="${l}" ${ps.length + bots.length >= 4 ? 'disabled' : ''}>${l}</button>`).join('')}</div>`;
+  if (R.isHost && R.status === 'lobby' && !Dr) h += `<div class="row" style="margin-top:16px"><button class="btn" data-act="addbot" data-l="expert" ${ps.length + bots.length >= 4 ? 'disabled' : ''}>Add a computer player</button></div>`;
   h += `<div class="row" style="margin-top:22px">`;
   if (R.isHost) h += `<button class="btn primary" data-act="hstart" ${bad || R.status !== 'lobby' ? 'disabled' : ''}>Start the game</button>${bad ? `<span class="btxt">${esc(bad)}</span>` : ''}`;
-  else h += `<span class="btxt">${R.status === 'lobby' ? 'Waiting for the host to start…' : 'The game has started. Reconnecting…'}</span>`;
-  return h + `${nfBtn()}${chatBtn()}<button class="btn ghost" data-act="leave">Leave room</button></div>`; }
+  else h += `<span class="btxt">${R.status === 'lobby' ? (R.async ? 'Waiting for the creator to start. You can close this page; the game will show up in My games.' : 'Waiting for the host to start…') : 'The game has started. Reconnecting…'}</span>`;
+  return h + `${nfBtn()}${chatBtn()}<button class="btn ghost" data-act="leave">${R.async ? 'Back to my games' : 'Leave room'}</button></div>`; }
 
 function renderBoard(prm, cover) {
   const V = S.V; const mine = prm && !cover;
@@ -11400,10 +11591,10 @@ function renderGame() {
   if (prm && S.selSeq !== prm.seq) { S.selSeq = prm.seq; S.sel = new Set(prm.pre ? (prm.k === 'cards' ? prm.cands.map(c => c.uid) : []) : []); }
   const waitP = prm ? prm.p : tn ? tn.p : null;
   const tcards = pl => pl.ti.filter(t => IMGU.cards[t.d]).map(t => { const d = CARDS[t.d]; return `<button class="tcard ${t.on ? 'out' : ''}" style="--f:${fcol(d.faction)}" data-act="zoom" data-z="card:${t.d}" title="${esc(d.name + ' · ' + d.text)}" aria-label="${esc(d.name)}, titan, ${t.on ? 'in play' : 'ready'}. Tap to enlarge."><img src="${IMGU.cards[t.d]}" alt="" draggable="false"><span class="stb">${t.on ? 'in play' : 'ready'}</span></button>`; }).join('');
-  let h = `${errBox()}<div class="score">${V.players.map((pl, i) => { const tc = tcards(pl); return `<div class="pl ${V.cur === i ? 'turn' : ''} ${tc ? 'hasti' : ''}"><span class="nm">${esc(pl.name)}${i === me && S.mode !== 'local' ? ' <span class="chip">you</span>' : ''}${pl.bot ? ` <span class="chip">AI ${pl.bot}</span>` : ''}</span><span class="vp">${pl.vp}<small>VP</small></span>
+  let h = `${errBox()}<div class="score">${V.players.map((pl, i) => { const tc = tcards(pl); return `<div class="pl ${V.cur === i ? 'turn' : ''} ${tc ? 'hasti' : ''}"><span class="nm">${esc(pl.name)}${i === me && S.mode !== 'local' ? ' <span class="chip">you</span>' : ''}${pl.bot ? ' <span class="chip">Computer</span>' : ''}</span><span class="vp">${pl.vp}<small>VP</small></span>
     <span class="fs">${pl.f.map(chip).join('')}</span><span class="cnt"><span>Hand ${pl.hand.length}</span><span>Deck ${pl.deck}</span><span>Discard ${pl.disc.length}</span>${pl.ti.filter(t => !IMGU.cards[t.d]).map(t => `<span class="tinfo" title="${esc(CARDS[t.d].text)}">♛ ${esc(CARDS[t.d].name)} ${t.on ? '(in play)' : '(ready)'}</span>`).join('')}${pl.sta.map(e => `<span class="tinfo">${esc(CARDS[e.d].name)} in stasis (${e.n})</span>`).join('')}</span>${tc ? `<div class="tcards">${tc}</div>` : ''}</div>`; }).join('')}</div>
     <div class="bar"><div class="phase">${(V.uses.madness || V.uses.monsters) && !V.over ? `<span class="decks">${V.uses.madness ? `Madness deck ${V.dk.mad}` : ''}${V.uses.monsters ? ` · Monsters ${V.dk.mon} · Treasure ${V.dk.tr}` : ''}</span><br>` : ''}${V.over ? 'Game over' : `${pn(V.cur)}’s turn · minion <b>${V.tm[0]}</b> · action <b>${V.tm[1]}</b> left`}${S.mode !== 'local' && !V.over && waitP != null && waitP !== me ? ` · <span class="btxt">waiting for ${pn(waitP)}</span>` : ''}${S.thinking != null && !V.over ? ' · <span class="btxt">thinking…</span>' : ''}</div>
-      <div class="row"><button class="btn ghost" data-act="undo" ${V.cu && !V.undo ? '' : 'disabled'}>Undo</button><button class="btn ghost" data-act="discards">Discard piles</button><button class="btn ghost" data-act="log">${S.showLog ? 'Hide log' : 'Show log'}</button>${nfBtn()}${chatBtn()}<button class="btn ghost" data-act="${S.mode === 'local' ? 'quit' : 'leave'}">${S.mode === 'local' ? 'New game' : 'Leave room'}</button></div></div>`;
+      <div class="row"><button class="btn ghost" data-act="undo" ${V.cu && !V.undo ? '' : 'disabled'}>Undo</button><button class="btn ghost" data-act="discards">Discard piles</button><button class="btn ghost" data-act="log">${S.showLog ? 'Hide log' : 'Show log'}</button>${S.mode === 'async' && me >= 0 ? '<button class="btn ghost" data-act="seatkey">Seat key</button>' : ''}${nfBtn()}${chatBtn()}<button class="btn ghost" data-act="${S.mode === 'local' ? 'quit' : 'leave'}">${S.mode === 'local' ? 'New game' : S.mode === 'async' ? 'My games' : 'Leave room'}</button></div></div>${S.mode === 'async' ? asyncNote(V, me, waitP) : ''}`;
   h += `<div class="gl">${renderTray(V)}<div class="gm">`;
   h += renderBoard(prm && prm.p === me ? prm : null, cover);
   if (S.showLog) h += `<div class="sect"><h2>Table log</h2></div><ul class="log">${V.log.slice().reverse().map(logItem).join('')}</ul>`;
@@ -11414,6 +11605,7 @@ function renderGame() {
     if (mode && tn.opts.length) h += `<div class="label" style="margin-bottom:6px">Talents and special plays</div><div class="opts" style="margin-bottom:12px">${tn.opts.map(o => `<button class="btn" data-act="opt" data-id="${esc(o.id)}">${esc(o.label)}</button>`).join('')}</div>`;
     h += `<div class="hand">${pl.hand.length ? pl.hand.map(c => cardTile(c, { act: 'hcard', sel: S.selCard === c.uid, off: mode && !(tn.play[c.uid] || []).length })).join('') : '<div class="empty">Your hand is empty.</div>'}</div>`;
     if (mode) h += `<div class="row" style="margin-top:16px"><button class="btn primary" data-act="end">Done playing: score bases and draw</button></div>`; }
+  else if (me === -1 && S.mode === 'async') h += `<div class="sect"><h2>Watching</h2></div><div class="insp"><p class="btxt" style="margin:0 0 8px">You aren’t seated in this game on this device. If one of the seats is yours, enter its seat key (any player in the game can see theirs under “Seat key”).</p><div class="row"><input type="text" id="skey" maxlength="6" placeholder="SEAT KEY" aria-label="Seat key" style="width:9em;text-transform:uppercase;font:600 16px var(--mono);letter-spacing:.15em;padding:10px 12px;border-radius:9px;border:1.5px solid var(--line);background:var(--surface-2);color:var(--ink)"><button class="btn primary" data-act="claim">Take my seat</button></div></div>`;
   else if (me === -1 && S.mode !== 'local') h += `<div class="sect"><h2>Spectating</h2></div><div class="empty">You are watching this game.</div>`;
   return h + '</div></div>'; }
 
@@ -11446,7 +11638,9 @@ function renderLayer() {
         : (u.need.includes(me) && !u.yes.includes(me) ? '<button class="btn primary" data-act="vote" data-y="1">Agree</button>' : '<span class="btxt">Waiting for the others…</span>')}
         <button class="btn" data-act="vote" data-y="0" ${local ? 'data-s="' + u.need[0] + '"' : ''}>${u.need.includes(me) || local ? 'Decline' : 'Cancel'}</button></div></div></div>`; }
   else if (S.mode === 'local' && S.cover != null) h += `<div class="overlay"><div class="panel"><div class="label">Pass the device</div><h2>${pn(S.cover)}, you’re up</h2><p class="btxt" style="margin:0">Everyone else look away. Your hand is shown once you tap the button.</p><button class="btn primary" data-act="seat" data-p="${S.cover}">I’m ${pn(S.cover)}</button></div></div>`;
-  else if (V.over) h += `<div class="overlay"><div class="panel"><div class="label">Final scores</div><h2>${V.wins.length > 1 ? V.wins.map(pn).join(' and ') + ' share the win' : pn(V.win) + ' wins'}</h2><ul class="dlist">${V.players.map((p, i) => ({ p, i })).sort((a, b) => (V.adj ? V.adj[b.i] - V.adj[a.i] : b.p.vp - a.p.vp)).map(({ p, i }) => `<li><span>${esc(p.name)}</span><b class="mono">${V.uses.madness && V.mdn ? `${p.vp} VP − ${Math.floor(V.mdn[i] / 2)} for ${V.mdn[i]} Madness = ${V.adj[i]}` : p.vp + ' VP'}</b></li>`).join('')}</ul><div class="row"><button class="btn primary" data-act="${S.mode === 'local' ? 'quit' : 'leave'}">${S.mode === 'local' ? 'Play again' : 'Leave room'}</button></div></div></div>`;
+  else if (V.over) h += `<div class="overlay"><div class="panel"><div class="label">Final scores</div><h2>${V.wins.length > 1 ? V.wins.map(pn).join(' and ') + ' share the win' : pn(V.win) + ' wins'}</h2><ul class="dlist">${V.players.map((p, i) => ({ p, i })).sort((a, b) => (V.adj ? V.adj[b.i] - V.adj[a.i] : b.p.vp - a.p.vp)).map(({ p, i }) => `<li><span>${esc(p.name)}</span><b class="mono">${V.uses.madness && V.mdn ? `${p.vp} VP − ${Math.floor(V.mdn[i] / 2)} for ${V.mdn[i]} Madness = ${V.adj[i]}` : p.vp + ' VP'}</b></li>`).join('')}</ul><div class="row"><button class="btn primary" data-act="${S.mode === 'local' ? 'quit' : 'leave'}">${S.mode === 'local' ? 'Play again' : S.mode === 'async' ? 'Back to my games' : 'Leave room'}</button></div></div></div>`;
+  else if (S.modal === 'seatkey' && S.A) { const me = actor(), k = S.A.keys[me] || '—';
+    h += `<div class="overlay" data-act="closemodal"><div class="panel" data-stop="1"><div class="label">Seat key</div><h2 class="mono" style="letter-spacing:.2em">${esc(k)}</h2><p class="btxt" style="margin:0">To carry on from another phone or computer, open My games there, join with code <b class="mono">${esc(S.A.code)}</b>, and enter this key to take your seat.</p><button class="btn primary" data-act="closemodal">Close</button></div></div>`; }
   else if (S.modal === 'zoom' && (S.zoom || S.zoomId)) { const z = S.zoomId || {}, zd = z.k === 'base' ? (typeof BASES !== 'undefined' ? BASES[z.id] : null) : CARDS[z.id];
     h += `<div class="overlay" data-act="closemodal">${S.zoom ? `<img class="zoomimg" src="${S.zoom}" alt="${esc(zd ? zd.name : '')}" data-act="closemodal">` : `<div class="ztext" data-act="closemodal"><b>${esc(zd ? zd.name : 'Card')}</b><span>${esc(zd && zd.text ? zd.text : '')}</span></div>`}<button class="btn primary zclose" data-act="closemodal">${S.zoomBack ? 'Back to discards' : 'Close'}</button></div>`; }
   else if (S.modal === 'discards') { const k = S.dtab, pl = V.players[k];
@@ -11460,7 +11654,7 @@ function render() {
   const keep = { x: window.scrollX, y: window.scrollY }; const ae = document.activeElement; const keepId = ae && ae.id && ae.tagName === 'INPUT' ? { id: ae.id, s: ae.selectionStart } : null;
   if (S.screen === 'game' && S.V) { const sheet = !!(S.V.prompt && S.V.prompt.p === actor() && !(S.mode === 'local' && S.cover != null)); $app.className = 'wrap' + (sheet ? ' has-sheet' : ''); $app.innerHTML = renderGame(); $layer.innerHTML = renderLayer(); }
   else { $app.className = 'wrap'; $layer.innerHTML = S.picker ? renderPicker() : '';
-    $app.innerHTML = S.screen === 'draft' && S.draft ? renderDraftScreen() : S.screen === 'setup' ? renderSetup() : S.screen === 'lobby' && S.room ? renderLobby() : renderHome(); }
+    $app.innerHTML = S.screen === 'draft' && S.draft ? renderDraftScreen() : S.screen === 'setup' ? renderSetup() : S.screen === 'lobby' && S.room ? renderLobby() : S.screen === 'mygames' ? renderMyGames() : S.screen === 'game' ? `<header class="hero"><h1 class="logo"><span class="a">SMASH</span><span class="b">UP</span></h1><p class="tag">Loading the game…</p></header>${errBox()}` : renderHome(); }
   if (keepId) { const el = document.getElementById(keepId.id); if (el) { el.focus(); try { el.setSelectionRange(keepId.s, keepId.s); } catch (e) {} } }
   window.scrollTo(keep.x, keep.y); draftAuto(); chatSync(); nfCheck(); }
 
@@ -11479,6 +11673,12 @@ document.addEventListener('click', e => {
     case 'goLocal': S.screen = 'setup'; S.err = ''; return render();
     case 'home': S.screen = 'home'; return render();
     case 'create': return void createRoom();
+    case 'mygames': S.screen = 'mygames'; S.err = ''; render(); return void asyncLoadMine();
+    case 'acreate': return void asyncCreate();
+    case 'aopen': return void openByCode(el.dataset.c);
+    case 'aremove': { const c = el.dataset.c; if (S.my) { if (S.my.subs[c]) { try { S.my.subs[c](); } catch (e) {} delete S.my.subs[c]; } delete S.my.rows[c]; } myBadge(); render(); return void rememberGame(c, true); }
+    case 'seatkey': S.modal = 'seatkey'; return render();
+    case 'claim': return void claimSeat();
     case 'join': return void joinRoom();
     case 'leave': return leaveRoom();
     case 'hstart': return void hostStart();
@@ -11510,7 +11710,7 @@ document.addEventListener('click', e => {
     case 'seat': S.seat = +el.dataset.p; S.cover = null; return render();
     case 'discards': S.modal = 'discards'; S.dtab = 0; return render();
     case 'dtab': S.dtab = +el.dataset.i; return render();
-    case 'undo': { if (S.mode === 'guest') return void sendMeta({ t: 'undo' }); return reqUndo(S.mode === 'local' ? null : seatOfUid(FB.uid)); }
+    case 'undo': { if (S.mode === 'async') return asyncUndo(); if (S.mode === 'guest') return void sendMeta({ t: 'undo' }); return reqUndo(S.mode === 'local' ? null : seatOfUid(FB.uid)); }
     case 'vote': { const y = el.dataset.y === '1';
       if (S.mode === 'local') return voteUndo(+el.dataset.s, y);
       if (S.mode === 'guest') return void sendMeta({ t: 'vote', yes: y }); return voteUndo(seatOfUid(FB.uid), y); }
@@ -11533,6 +11733,11 @@ document.addEventListener('click', e => {
   if (a === 'no') return void send(false);
   if (a === 'option') return void send(el.dataset.id);
 });
+/* async games: save unsent moves when the page is hidden, and keep the My games badge fresh */
+document.addEventListener('visibilitychange', () => { if (document.hidden && S.A && S.A.dirty) asyncFlush(); });
+window.addEventListener('pagehide', () => { if (S.A && S.A.dirty) asyncFlush(); });
+window.addEventListener('beforeunload', e => { if (S.A && (S.A.dirty || S.A.writing)) { asyncFlush(); e.preventDefault(); e.returnValue = ''; } });
+try { if (localStorage.getItem('suAsync') === '1') setTimeout(() => { asyncLoadMine().then(() => { if (S.screen === 'home') { S.err = ''; render(); } }); }, 400); } catch (e) {}
 render();
 })();
 
