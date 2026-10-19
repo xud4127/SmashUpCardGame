@@ -247,7 +247,9 @@ details.rules li { margin: 4px 0; }
 .mnw.txt .at{height:38px;border-left-width:6px}
 .at:hover{filter:brightness(1.06)}
 
-.gl{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-items:start}
+.gl{display:grid;grid-template-columns:minmax(0,1fr);grid-template-areas:"now" "last" "main";gap:14px;align-items:start}
+.gl>.tray.now{grid-area:now}.gl>.tray.last{grid-area:last}.gl>.gm{grid-area:main}
+.tray.last .th b{color:var(--muted)}
 .gm{min-width:0}
 .tray{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 8px;align-items:flex-start}
 .tray.none{display:none}
@@ -262,11 +264,17 @@ details.rules li { margin: 4px 0; }
 .tray-c.txt .cap{margin:0 -8px}
 @media (min-width:1120px){
   .wrap:has(.gl){max-width:1420px}
-  .gl{grid-template-columns:196px minmax(0,1fr)}
+  .gl{grid-template-columns:196px minmax(0,1fr);grid-template-areas:"now main" "last main";grid-template-rows:auto 1fr}
+  .gl>.tray.last{position:static;max-height:none}
   .tray{position:sticky;top:12px;flex-direction:column;overflow:visible;align-items:stretch;padding:0;max-height:calc(100vh - 24px);overflow-y:auto}
   .tray.none{display:flex}
   .tray .th{flex-direction:row;justify-content:space-between;align-items:baseline;padding:0 2px 2px}
   .tray-c{flex:0 0 auto;width:100%}
+}
+@media (min-width:1360px){
+  .wrap:has(.gl){max-width:1660px}
+  .gl{grid-template-columns:196px minmax(0,1fr) 196px;grid-template-areas:"now main last";grid-template-rows:auto}
+  .gl>.tray.last{position:sticky;max-height:calc(100vh - 24px)}
 }
 .ver{text-align:center;padding:10px 16px calc(14px + env(safe-area-inset-bottom,0px));font:600 11px var(--mono);letter-spacing:.06em;color:var(--muted)}
 #toast{position:fixed;z-index:80;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translate(-50%,30px);opacity:0;pointer-events:none;max-width:min(92vw,420px);padding:10px 16px;border-radius:12px;background:var(--ink);color:var(--bg);font:600 14px/1.35 var(--body);box-shadow:0 8px 28px rgba(0,0,0,.28);transition:.2s}
@@ -287,7 +295,7 @@ details.rules li { margin: 4px 0; }
 </style>
 
 <div class="wrap" id="app"></div>
-<div class="ver" aria-label="Page version">Version Oct 18 22:54 UTC</div>
+<div class="ver" aria-label="Page version">Version Oct 19 03:41 UTC</div>
 <div id="layer"></div>
 <div id="chatdock"></div><div id="toast" role="status" aria-live="polite"></div>
 
@@ -11009,7 +11017,7 @@ function buildView() {
   const g = S.g, pe = S.pend;
   const V = { seq: pe ? pe.seq : 0, cur: g.current, tm: [g.turn.minionsLeft, g.turn.actionsLeft], over: !!g.over, win: g.winner, log: g.logs.slice(-60), seats: S.seats, prompt: null, turn: null, cu: S.mode === 'async' ? asyncCanUndo() : (!g.over && S.log.some(e => e.h)), undo: S.undoReq ? { by: S.undoReq.by, yes: S.undoReq.yes, need: S.undoReq.need, label: S.undoReq.label } : null,
     players: g.players.map(pl => ({ name: pl.name, f: pl.factions, vp: pl.vp, deck: pl.deck.length, hand: pl.hand.map(cr), disc: pl.discard.map(c => c.def.id), na: !!(g.sleep[pl.idx] && g.sleep[pl.idx].noActions), bot: botLvl(pl.idx), ti: pl.titans.map(t => ({ uid: t.uid, d: t.def.id, on: !!t.base })), sta: pl.stasis.map(e => ({ d: e.card.def.id, n: e.counters })) })),
-    pt: (g.turn.played || []).map(e => ({ uid: e.uid, d: e.d, p: e.p, tg: e.tg })), dk: { mad: g.madnessDeck.length, mon: g.monsterDeck.length, tr: g.treasureDeck.length }, uses: g.uses, adj: g.adjusted || null, mdn: g.madness || null, wins: g.winners || (g.winner != null ? [g.winner] : []),
+    pt: g.feed ? g.feed().slice() : (g.turn.played || []).map(e => ({ uid: e.uid, d: e.d, p: e.p, tg: e.tg })), lt: g.prevTurn || null, dk: { mad: g.madnessDeck.length, mon: g.monsterDeck.length, tr: g.treasureDeck.length }, uses: g.uses, adj: g.adjusted || null, mdn: g.madness || null, wins: g.winners || (g.winner != null ? [g.winner] : []),
     bases: g.bases.map(b => ({ uid: b.uid, d: b.def.id, pw: g.basePower(b), bp: g.breakpoint(b), on: g.baseActive(b),
       ti: b.titans.map(t => ({ uid: t.uid, d: t.def.id, c: t.controller, pw: t.counters || 0 })), bu: b.buried.length, sc: (b.stored || []).length,
       mn: b.minions.map(m => ({ uid: m.uid, d: m.def.id, c: m.controller, pw: g.powerOf(m), cn: m.counters || 0, sc: (m.stored || []).length, st: !!m.stego, at: m.attached.map(a => ({ uid: a.uid, d: a.def.id, c: a.controller })) })),
@@ -11059,7 +11067,11 @@ function makeGame(log) {
   const rh = { onChange() { host.onChange(); },
     ask(gg, p, spec) { return step({ kind: 'prompt', p, spec }, () => host.ask(gg, p, spec)); },
     chooseTurnAction(gg, p, info) { return step({ kind: 'turn', p, info }, () => host.chooseTurnAction(gg, p, info)); } };
-  S.replaying = log.length > 0; g = SU.createGame({ players: S.cfg.players, host: rh, seed: S.cfg.seed, first: S.cfg.first }); S.g = g; AI.hook(g); S.ai = AI.create(g, { SU, snapshot: () => ({ cfg: S.cfg, log: S.log.slice() }) });
+  S.replaying = log.length > 0; g = SU.createGame({ players: S.cfg.players, host: rh, seed: S.cfg.seed, first: S.cfg.first }); S.g = g;
+  /* the "played this turn / last turn" trays: actions (from the engine's list) and minions, in the order they were played */
+  { const feed = () => { const t = g.turn, f = t.__feed = t.__feed || [], pl = t.played || []; t.__pa = t.__pa || 0; while (t.__pa < pl.length) { const e = pl[t.__pa++]; f.push({ uid: e.uid, d: e.d, p: e.p, tg: e.tg }); } return f; }; g.feed = feed;
+    const opm = g.playMinion; g.playMinion = async function (p, card, base, o) { if (p != null && card && card.def && !(o && (o.uncontrolled || o.silent))) feed().push({ uid: card.uid, d: card.def.id, p, tg: base && base.def ? base.def.name : null, m: 1 }); return opm.apply(this, arguments); };
+    const ot = g.takeTurn; g.takeTurn = async () => { const who = g.current; await ot(); g.prevTurn = { p: who, pt: feed().slice() }; }; } AI.hook(g); S.ai = AI.create(g, { SU, snapshot: () => ({ cfg: S.cfg, log: S.log.slice() }) });
   g.run().then(async () => { if (S.g !== g) return; S.replaying = false; pushView(); if (S.mode === 'async') asyncSave(); if (S.mode === 'host' && S.room) { try { await FB.db.doc(rpath(S.room.code)).update({ status: 'done' }); } catch (e) {} } })
     .catch(err => { if (S.g !== g) return; S.replaying = false; console.error(err); S.err = S.mode === 'async' && /rewind/.test(String(err && err.message)) ? 'This game’s saved moves don’t fit this version of the rules, so it can’t be rebuilt here. (The page was updated while the game was in progress.)' : 'Something went wrong: ' + (err && err.message || err); render(); }); }
 function startEngine(players, mode, bots, first) {
@@ -11578,13 +11590,18 @@ function logItem(l) {
   const cards = found.map(([name, f]) => { const im = f.k === 'base' ? IMGU.bases[f.id] : IMGU.cards[f.id], tx = f.k === 'base' ? BASES[f.id].text : CARDS[f.id].text;
     return `<button class="lc ${f.k}" data-act="zoom" data-z="${f.k}:${f.id}" title="Tap to enlarge">${im ? `<img src="${im}" alt="" draggable="false">` : ''}<span><b>${esc(name)}</b><small>${esc(tx)}</small></span></button>`; }).join('');
   return `<li class="${l.startsWith('\u2014') ? 'turn' : ''}"><span>${esc(l)}</span>${cards ? `<div class="lcs">${cards}</div>` : ''}</li>`; }
+function trayItems(list, V) {
+  return list.map(e => { const d = CARDS[e.d], im = IMGU.cards[e.d], who = V.players[e.p] ? V.players[e.p].name : '?'; if (!d) return '';
+    const cap = `<span class="tw">${esc(who)}</span>${e.tg ? `<span class="tt">${e.m ? 'at' : 'on'} ${esc(e.tg)}</span>` : ''}`;
+    return im ? `<button class="tray-c" style="--f:${fcol(d.faction)}" data-act="zoom" data-z="card:${e.d}" title="${esc(d.name + ' · ' + d.text)}" aria-label="${esc(who)} played ${esc(d.name)}${e.tg ? (e.m ? ' at ' : ' on ') + esc(e.tg) : ''}. Tap to enlarge."><img src="${im}" alt="" draggable="false"><span class="cap">${cap}</span></button>`
+      : `<div class="tray-c txt" style="--f:${fcol(d.faction)}" title="${esc(d.text)}"><b>${esc(d.name)}</b><small>${esc(d.text)}</small><span class="cap">${cap}</span></div>`; }).join(''); }
 function renderTray(V) {
-  const list = (V.pt || []).slice().reverse().slice(0, 8);
-  const items = list.map(e => { const d = CARDS[e.d], im = IMGU.cards[e.d], who = V.players[e.p] ? V.players[e.p].name : '?';
-    const cap = `<span class="tw">${esc(who)}</span>${e.tg ? `<span class="tt">on ${esc(e.tg)}</span>` : ''}`;
-    return im ? `<button class="tray-c" style="--f:${fcol(d.faction)}" data-act="zoom" data-z="card:${e.d}" title="${esc(d.name + ' · ' + d.text)}" aria-label="${esc(who)} played ${esc(d.name)}${e.tg ? ' on ' + esc(e.tg) : ''}. Tap to enlarge."><img src="${im}" alt="" draggable="false"><span class="cap">${cap}</span></button>`
-      : `<div class="tray-c txt" style="--f:${fcol(d.faction)}" title="${esc(d.text)}"><b>${esc(d.name)}</b><small>${esc(d.text)}</small><span class="cap">${cap}</span></div>`; }).join('');
-  return `<aside class="tray ${list.length ? '' : 'none'}" aria-label="Actions played this turn"><div class="th"><b>Played this turn</b>${V.over ? '' : `<span class="btxt">${esc(V.players[V.cur] ? V.players[V.cur].name : '')}</span>`}</div>${items || '<div class="empty">No actions played yet this turn.</div>'}</aside>`; }
+  const list = (V.pt || []).slice().reverse().slice(0, 12);
+  return `<aside class="tray now ${list.length ? '' : 'none'}" aria-label="Cards played this turn"><div class="th"><b>Played this turn</b>${V.over ? '' : `<span class="btxt">${esc(V.players[V.cur] ? V.players[V.cur].name : '')}</span>`}</div>${trayItems(list, V) || '<div class="empty">Nothing played yet this turn.</div>'}</aside>`; }
+function renderLastTray(V) {
+  const L = V.lt; const list = L ? (L.pt || []).slice().reverse().slice(0, 12) : [];
+  const who = L && V.players[L.p] ? V.players[L.p].name : '';
+  return `<aside class="tray last ${list.length ? '' : 'none'}" aria-label="Cards played last turn"><div class="th"><b>Last turn</b>${who ? `<span class="btxt">${esc(who)}</span>` : ''}</div>${trayItems(list, V) || `<div class="empty">${L ? 'Nothing was played last turn.' : 'No turn has finished yet.'}</div>`}</aside>`; }
 function renderGame() {
   const V = S.V, me = actor(), cover = S.mode === 'local' ? S.cover : null;
   const prm = V.prompt, tn = V.turn;
@@ -11595,7 +11612,7 @@ function renderGame() {
     <span class="fs">${pl.f.map(chip).join('')}</span><span class="cnt"><span>Hand ${pl.hand.length}</span><span>Deck ${pl.deck}</span><span>Discard ${pl.disc.length}</span>${pl.ti.filter(t => !IMGU.cards[t.d]).map(t => `<span class="tinfo" title="${esc(CARDS[t.d].text)}">♛ ${esc(CARDS[t.d].name)} ${t.on ? '(in play)' : '(ready)'}</span>`).join('')}${pl.sta.map(e => `<span class="tinfo">${esc(CARDS[e.d].name)} in stasis (${e.n})</span>`).join('')}</span>${tc ? `<div class="tcards">${tc}</div>` : ''}</div>`; }).join('')}</div>
     <div class="bar"><div class="phase">${(V.uses.madness || V.uses.monsters) && !V.over ? `<span class="decks">${V.uses.madness ? `Madness deck ${V.dk.mad}` : ''}${V.uses.monsters ? ` · Monsters ${V.dk.mon} · Treasure ${V.dk.tr}` : ''}</span><br>` : ''}${V.over ? 'Game over' : `${pn(V.cur)}’s turn · minion <b>${V.tm[0]}</b> · action <b>${V.tm[1]}</b> left`}${S.mode !== 'local' && !V.over && waitP != null && waitP !== me ? ` · <span class="btxt">waiting for ${pn(waitP)}</span>` : ''}${S.thinking != null && !V.over ? ' · <span class="btxt">thinking…</span>' : ''}</div>
       <div class="row"><button class="btn ghost" data-act="undo" ${V.cu && !V.undo ? '' : 'disabled'}>Undo</button><button class="btn ghost" data-act="discards">Discard piles</button><button class="btn ghost" data-act="log">${S.showLog ? 'Hide log' : 'Show log'}</button>${S.mode === 'async' && me >= 0 ? '<button class="btn ghost" data-act="seatkey">Seat key</button>' : ''}${nfBtn()}${chatBtn()}<button class="btn ghost" data-act="${S.mode === 'local' ? 'quit' : 'leave'}">${S.mode === 'local' ? 'New game' : S.mode === 'async' ? 'My games' : 'Leave room'}</button></div></div>${S.mode === 'async' ? asyncNote(V, me, waitP) : ''}`;
-  h += `<div class="gl">${renderTray(V)}<div class="gm">`;
+  h += `<div class="gl">${renderTray(V)}${renderLastTray(V)}<div class="gm">`;
   h += renderBoard(prm && prm.p === me ? prm : null, cover);
   if (S.showLog) h += `<div class="sect"><h2>Table log</h2></div><ul class="log">${V.log.slice().reverse().map(logItem).join('')}</ul>`;
   if (me != null && me >= 0 && !cover && !V.over) {
