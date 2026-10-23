@@ -1,4 +1,6 @@
+<!doctype html>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Smash Up Table</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -9,6 +11,7 @@
 :root {
   --bg: #e9edf3; --surface: #ffffff; --surface-2: #f2f5f9; --ink: #121a2b; --muted: #57657a; --line: #cbd3df;
   --accent: #d6304a; --accent-ink: #ffffff; --hl: #f0b020; --good: #1f8a54; --bad: #c8342c;
+  --mn: #1663c7; --mn-ink: #ffffff; --ac: #c2410c; --ac-ink: #ffffff;
   --shadow: 0 1px 0 rgba(18,26,43,.06), 0 6px 18px rgba(18,26,43,.07);
   --display: 'Alfa Slab One', 'Rockwell', 'Georgia', serif;
   --body: 'Figtree', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -17,10 +20,12 @@
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #0e1420; --surface: #172033; --surface-2: #1d2840; --ink: #eef1f7; --muted: #9aa7bc; --line: #2b3852;
   --accent: #ff5a70; --accent-ink: #1a0b10; --hl: #f5c04a; --good: #4cc98a; --bad: #ff7a70;
+  --mn: #6db0ff; --mn-ink: #0b1626; --ac: #ff9b5e; --ac-ink: #24100a;
   --shadow: 0 1px 0 rgba(0,0,0,.3), 0 8px 22px rgba(0,0,0,.35); color-scheme: dark; } }
 :root[data-theme="dark"] {
   --bg: #0e1420; --surface: #172033; --surface-2: #1d2840; --ink: #eef1f7; --muted: #9aa7bc; --line: #2b3852;
   --accent: #ff5a70; --accent-ink: #1a0b10; --hl: #f5c04a; --good: #4cc98a; --bad: #ff7a70;
+  --mn: #6db0ff; --mn-ink: #0b1626; --ac: #ff9b5e; --ac-ink: #24100a;
   --shadow: 0 1px 0 rgba(0,0,0,.3), 0 8px 22px rgba(0,0,0,.35); color-scheme: dark; }
 
 * { box-sizing: border-box; }
@@ -210,6 +215,26 @@ details.rules li { margin: 4px 0; }
 .dbox{display:grid;gap:10px;margin-top:18px;padding:14px;border:1.5px dashed var(--line);border-radius:12px;background:var(--surface-2)}
 .dbox input[type=number]{width:84px}
 .dpanel{display:grid;gap:12px;margin-top:16px}
+.left{display:inline-flex;align-items:baseline;gap:5px;margin-left:6px;padding:2px 10px 3px;border-radius:99px;font:600 13px var(--body);white-space:nowrap;vertical-align:1px}
+.left b{font:700 15px var(--mono)}
+.left.lm{background:var(--mn);color:var(--mn-ink)}.left.la{background:var(--ac);color:var(--ac-ink)}
+.left.zero{background:var(--surface-2);color:var(--muted);box-shadow:inset 0 0 0 1.5px var(--line)}
+.left.nudge{animation:nudge 1.6s ease-in-out infinite}
+@keyframes nudge{0%,100%{box-shadow:0 0 0 0 transparent}50%{box-shadow:0 0 0 4px var(--hl)}}
+@media (prefers-reduced-motion:reduce){.left.nudge{animation:none;outline:2px solid var(--hl);outline-offset:1px}}
+.endrow{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:16px}.endrow .left{margin-left:0}
+.dorder{list-style:none;margin:2px 0 4px;padding:0;display:grid;gap:6px;max-width:420px}
+.dorder li{display:flex;align-items:center;gap:10px;padding:5px 6px 5px 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface)}
+.dorder .dn{font:700 14px var(--mono);color:var(--muted);width:1.2em}.dorder b{flex:1;min-width:0;overflow-wrap:anywhere}
+.dorder .dmv{display:flex;gap:4px}.dorder .dmv .btn{padding:4px 10px;min-height:0}
+.hgrp{display:grid;gap:6px;margin-bottom:12px}.hgl{display:flex;align-items:center;gap:8px;font:700 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.hgl i{width:10px;height:10px;border-radius:3px;background:var(--c)}.hgl small{font:600 12px var(--mono);letter-spacing:0}
+.hgl .hint{margin-left:auto;font:500 12px var(--body);letter-spacing:0;text-transform:none}
+.hint .hc{display:none}@media (pointer:coarse){.hint .hf{display:none}.hint .hc{display:inline}}
+.hand .card{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.hand .card.dragging{opacity:.3}
+.hand .card.drop-before{box-shadow:-5px 0 0 0 var(--hl)}.hand .card.drop-after{box-shadow:5px 0 0 0 var(--hl)}
+.dragghost{position:fixed;z-index:90;pointer-events:none;transform:rotate(-3deg) scale(1.04);box-shadow:0 12px 30px rgba(0,0,0,.35);opacity:.95;margin:0}
 .mglist{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:10px}
 .mg{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow)}
 .mg.up{border:2px solid var(--accent)}
@@ -295,7 +320,7 @@ details.rules li { margin: 4px 0; }
 </style>
 
 <div class="wrap" id="app"></div>
-<div class="ver" aria-label="Page version">Version Oct 19 03:41 UTC</div>
+<div class="ver" aria-label="Page version">Version Oct 23 03:11 UTC</div>
 <div id="layer"></div>
 <div id="chatdock"></div><div id="toast" role="status" aria-live="polite"></div>
 
@@ -10976,6 +11001,7 @@ const S = { chat: { msgs: [], open: false, seen: 0 }, log: [], undoReq: null, re
   selCard: null, inspect: null, bots: [], ai: null, modal: null, dtab: 0, showLog: false, sel: new Set(), selSeq: -1, err: '', busy: false,
   myName: '', joinCode: '', room: null,
   setup: { n: 2, players: [ { name: 'Player 1', f: ['pirates', 'zombies'], ai: null }, { name: 'Player 2', f: ['dinosaurs', 'wizards'], ai: null }, { name: 'Player 3', f: [], ai: null }, { name: 'Player 4', f: [], ai: null } ] } };
+S.remind = true; S.hord = {}; try { S.remind = localStorage.getItem('suRemind') !== '0'; } catch (e) {}
 try { const s = JSON.parse(localStorage.getItem('suSetup') || 'null'); if (s && s.players && s.players.length === 4) S.setup = s; S.myName = localStorage.getItem('suName') || ''; } catch (e) {}
 const saveSetup = () => { try { localStorage.setItem('suSetup', JSON.stringify(S.setup)); } catch (e) {} };
 const saveName = () => { try { localStorage.setItem('suName', S.myName); } catch (e) {} };
@@ -11103,8 +11129,15 @@ const draftDone = D => !!D && D.picks.length >= D.order.length;
 const draftFacs = (D, k) => D.picks.filter(p => p.k === k).map(p => p.f);
 function draftSize(n) { const mx = playableIds().length, mn = draftMin(n); let v = parseInt(S.dsize, 10); if (!(v >= mn)) v = S.dsize == null || S.dsize === '' ? Math.max(mn, Math.min(12, mx)) : mn; return Math.max(mn, Math.min(mx, v)); }
 function draftName(D, k) { if (S.room) { const p = S.room.players.find(x => x.id === k); if (p) return p.name; } return (D.names && D.names[k]) || k; }
-function draftBox(n) { const mn = draftMin(n), mx = playableIds().length;
+/* pick order for the snake draft (also the turn order): S.dorder holds player keys ('p0'… on this device, uids / 'bot:i' online) */
+function draftPeople() { if (S.screen === 'lobby' && S.room) { const R = S.room; return [...R.players.map(p => ({ k: p.id, name: p.name || 'Player' })), ...(R.bots || []).map((b, i) => ({ k: 'bot:' + i, name: b.name }))]; }
+  return S.setup.players.slice(0, S.setup.n).map((p, i) => ({ k: 'p' + i, name: p.name.trim() || 'Player ' + (i + 1) })); }
+function draftOrder() { const ps = draftPeople(), ks = ps.map(p => p.k); const o = (S.dorder || []).filter(k => ks.includes(k)); for (const k of ks) if (!o.includes(k)) o.push(k); S.dorder = o; return o.map(k => ps.find(p => p.k === k)); }
+function draftBox(n) { const mn = draftMin(n), mx = playableIds().length, ord = draftOrder();
   return `<div class="dbox"><div class="label">Snake draft</div><div class="btxt">A random pool of factions is dealt face up. Players pick in snake order — the first player picks first and last (1, 2, … ${n}, ${n}, … 2, 1) — until everyone has two.</div>
+    <div class="label" style="margin-top:4px">Pick order — also the turn order</div>
+    <ol class="dorder">${ord.map((p, i) => `<li><span class="dn">${i + 1}</span><b>${esc(p.name)}</b><span class="dmv"><button class="btn ghost" data-act="dmove" data-i="${i}" data-d="-1" ${i === 0 ? 'disabled' : ''} aria-label="Move ${esc(p.name)} earlier">↑</button><button class="btn ghost" data-act="dmove" data-i="${i}" data-d="1" ${i === ord.length - 1 ? 'disabled' : ''} aria-label="Move ${esc(p.name)} later">↓</button></span></li>`).join('')}</ol>
+    <div class="row"><button class="btn ghost" data-act="dshuffle">Randomize the order</button><span class="btxt">${esc(ord[0] ? ord[0].name : '')} picks first and last, and takes the first turn.</span></div>
     <div class="row"><label class="label" for="dsize">Factions in the pool</label><input id="dsize" type="number" inputmode="numeric" min="${mn}" max="${mx}" step="1" value="${S.dsize == null || S.dsize === '' ? draftSize(n) : esc(String(S.dsize))}" data-in="dsize" style="width:84px;font:600 16px var(--body);padding:8px 10px;border-radius:9px;border:1.5px solid var(--line);background:var(--surface-2);color:var(--ink)">
     <span class="btxt">${mn}–${mx} (at least 2 × ${n} players)</span></div><div class="row"><button class="btn" data-act="dstart">Start snake draft</button></div></div>`; }
 function renderDraftPanel(D, canPickNow) {
@@ -11125,11 +11158,13 @@ function draftAuto() {
     const left = D2.pool.filter(f => !D2.picks.some(p => p.f === f)); const f = left[Math.floor(Math.random() * left.length)];
     if (local) localDraftPick(f); else hostDraftPick(k, f); }, 650); }
 function startLocalDraft() { const s = S.setup, n = s.n, size = draftSize(n); S.dsize = size;
-  S.draft = { pool: makePool(size), keys: Array.from({ length: n }, (_, i) => 'p' + i), order: snakeOrder(n), picks: [], names: Object.fromEntries(s.players.slice(0, n).map((p, i) => ['p' + i, p.name.trim() || 'Player ' + (i + 1)])) };
+  S.draft = { pool: makePool(size), keys: draftOrder().map(p => p.k), order: snakeOrder(n), picks: [], names: Object.fromEntries(s.players.slice(0, n).map((p, i) => ['p' + i, p.name.trim() || 'Player ' + (i + 1)])) };
   S.screen = 'draft'; S.note = ''; S.drafted = false; render(); }
 function localDraftPick(f) { const D = S.draft; if (!D) return; const k = draftCur(D); if (k == null || !D.pool.includes(f) || D.picks.some(p => p.f === f)) return;
   D.picks.push({ k, f });
-  if (draftDone(D)) { S.setup.players.forEach(p => { p.f = []; }); D.keys.forEach(kk => { S.setup.players[+kk.slice(1)].f = draftFacs(D, kk); }); saveSetup(); S.draft = null; S.drafted = true; S.screen = 'setup'; S.note = 'Snake draft complete — every player has two factions. The first picker goes first.'; }
+  if (draftDone(D)) { const old = S.setup.players; old.forEach(p => { p.f = []; }); D.keys.forEach(kk => { old[+kk.slice(1)].f = draftFacs(D, kk); });
+    const seated = D.keys.map(kk => old[+kk.slice(1)]); S.setup.players = [...seated, ...old.filter(p => !seated.includes(p))]; S.dorder = null;
+    saveSetup(); S.draft = null; S.drafted = true; S.screen = 'setup'; S.note = 'Snake draft complete — every player has two factions. Players are now in pick order, which is also the turn order.'; }
   render(); }
 function renderDraftScreen() { const D = S.draft, k = draftCur(D), human = k != null && !S.setup.players[+k.slice(1)].ai;
   return `<header class="hero"><h1 class="logo"><span class="a">SMASH</span><span class="b">UP</span></h1><p class="tag">Pass the screen to whoever is picking.</p></header>
@@ -11139,7 +11174,7 @@ async function hostDraftPick(key, f) { const R = S.room; if (!R || !R.isHost || 
   D.picks.push({ k: key, f }); render(); try { await FB.db.doc(rpath(R.code)).update({ draft: D }); } catch (e) { S.err = 'Could not save that pick.'; render(); } }
 async function hostStartDraft() { const R = S.room; if (!R || !R.isHost || R.status !== 'lobby') return; const ps = R.players, bots = R.bots || []; const n = ps.length + bots.length;
   if (n < 2 || n > 4) { S.err = 'Need 2–4 players (people plus computer players).'; return render(); }
-  const size = draftSize(n); S.dsize = size; const keys = [...ps.map(p => p.id), ...bots.map((b, i) => 'bot:' + i)];
+  const size = draftSize(n); S.dsize = size; const keys = draftOrder().map(p => p.k);
   const D = { pool: makePool(size), keys, order: snakeOrder(n), picks: [], names: Object.fromEntries([...ps.map(p => [p.id, p.name]), ...bots.map((b, i) => ['bot:' + i, b.name])]) };
   if (R.async) botDraftFill(D);
   R.draft = D; S.err = ''; render(); try { await FB.db.doc(rpath(R.code)).update({ draft: D }); } catch (e) { S.err = 'Could not start the draft.'; render(); } }
@@ -11252,14 +11287,18 @@ function lobbyOk() {
 async function hostStart() {
   const bad = lobbyOk(); if (bad || S.room.status !== 'lobby') return;
   const ps = S.room.players, bots = S.room.bots || []; const used = new Set(ps.flatMap(p => p.f)); const free = fkeys().filter(f => !used.has(f)).sort(() => Math.random() - .5);
-  const seats = [...ps.map(p => p.id), ...bots.map((b, i) => 'bot:' + i)];
-  const Dr = S.room.draft; const list = Dr ? [...ps.map(p => ({ name: p.name, factions: draftFacs(Dr, p.id) })), ...bots.map((b, i) => ({ name: b.name, factions: draftFacs(Dr, 'bot:' + i) }))] : [...ps.map(p => ({ name: p.name, factions: p.f.slice() })), ...bots.map((b, i) => ({ name: b.name, factions: [free[i * 2], free[i * 2 + 1]] }))];
-  if (S.room.async) { const keys = seats.map(x => String(x).startsWith('bot:') ? null : seatKey()); S.asyncDrive = S.room.code;
-    try { await FB.db.doc(rpath(S.room.code)).update({ status: 'playing', cfg: { players: list, seed: Math.floor(Math.random() * 2147483647), first: Dr ? 0 : null }, seats, bl: [...ps.map(() => null), ...bots.map(b => b.lvl)], keys, ver: RULES_VER }); }
+  const Dr = S.room.draft;
+  /* with a draft, seats (and so the turn order) follow the pick order */
+  const keys = Dr ? Dr.keys.slice() : [...ps.map(p => p.id), ...bots.map((b, i) => 'bot:' + i)];
+  const who = k => String(k).startsWith('bot:') ? { bot: bots[+String(k).slice(4)], i: +String(k).slice(4) } : { p: ps.find(x => x.id === k) };
+  const seats = keys.slice(), lv = keys.map(k => { const w = who(k); return w.bot ? w.bot.lvl : null; });
+  const list = keys.map(k => { const w = who(k); return Dr ? { name: w.bot ? w.bot.name : w.p.name, factions: draftFacs(Dr, k) } : w.bot ? { name: w.bot.name, factions: [free[w.i * 2], free[w.i * 2 + 1]] } : { name: w.p.name, factions: w.p.f.slice() }; });
+  if (S.room.async) { const skeys = seats.map(x => String(x).startsWith('bot:') ? null : seatKey()); S.asyncDrive = S.room.code;
+    try { await FB.db.doc(rpath(S.room.code)).update({ status: 'playing', cfg: { players: list, seed: Math.floor(Math.random() * 2147483647), first: Dr ? 0 : null }, seats, bl: lv, keys: skeys, ver: RULES_VER }); }
     catch (e) { S.asyncDrive = null; S.err = 'Could not start.'; render(); } return; }
   S.seats = seats;
   try { await FB.db.doc(rpath(S.room.code)).update({ status: 'playing' }); } catch (e) { S.err = 'Could not start.'; render(); return; }
-  startEngine(list, 'host', [...ps.map(() => null), ...bots.map(b => b.lvl)], Dr ? 0 : null); }
+  startEngine(list, 'host', lv, Dr ? 0 : null); }
 const BOT_NAMES = ['Ada', 'Bix', 'Cog', 'Dot'];
 function setBots(bots) { S.room.bots = bots; render(); FB.db.doc(rpath(S.room.code)).update({ bots }).catch(() => {}); }
 
@@ -11602,6 +11641,24 @@ function renderLastTray(V) {
   const L = V.lt; const list = L ? (L.pt || []).slice().reverse().slice(0, 12) : [];
   const who = L && V.players[L.p] ? V.players[L.p].name : '';
   return `<aside class="tray last ${list.length ? '' : 'none'}" aria-label="Cards played last turn"><div class="th"><b>Last turn</b>${who ? `<span class="btxt">${esc(who)}</span>` : ''}</div>${trayItems(list, V) || `<div class="empty">${L ? 'Nothing was played last turn.' : 'No turn has finished yet.'}</div>`}</aside>`; }
+/* plays left this turn, in their own colours; nudge = gently pulse the ones the player can still use (when reminders are on) */
+function playsLeft(V) { const tn = V.turn; if (!tn) return { m: false, a: false, held: 0 }; const modes = Object.values(tn.play || {});
+  return { m: V.tm[0] > 0 && modes.some(x => x.includes('minion')), a: V.tm[1] > 0 && modes.some(x => x.includes('action')), held: tn.opts.filter(o => /^held/.test(o.id)).length }; }
+function leftPills(V, mine) { const L = mine && S.remind ? playsLeft(V) : { m: false, a: false }, m = V.tm[0], a = V.tm[1];
+  return `<span class="left lm ${m ? '' : 'zero'} ${L.m ? 'nudge' : ''}"><b>${m}</b> minion${m === 1 ? '' : 's'} left</span><span class="left la ${a ? '' : 'zero'} ${L.a ? 'nudge' : ''}"><b>${a}</b> action${a === 1 ? '' : 's'} left</span>`; }
+/* the hand, split into minions and actions; drag a card (long-press on touch) to reorder it within its row */
+const HGROUPS = [['m', 'Minions', 'var(--mn)'], ['f', 'Minion or action', 'var(--hl)'], ['a', 'Actions', 'var(--ac)'], ['o', 'Other', 'var(--line)']];
+const hgOf = c => { const t = CARDS[c.d] && CARDS[c.d].type; return t === 'minion' ? 'm' : t === 'action' ? 'a' : t === 'fusion' ? 'f' : 'o'; };
+const hordKey = me => (S.room ? S.room.code : 'local') + ':' + (S.cfg ? S.cfg.seed : '') + ':' + me;
+function sortedHand(hand, me) { const o = S.hord[hordKey(me)] || []; const pos = new Map(o.map((u, i) => [u, i]));
+  return hand.map((c, i) => ({ c, i })).sort((x, y) => (pos.has(x.c.uid) ? pos.get(x.c.uid) : 1e6 + x.i) - (pos.has(y.c.uid) ? pos.get(y.c.uid) : 1e6 + y.i)).map(x => x.c); }
+function renderHand(pl, me, mode, tn) {
+  if (!pl.hand.length) return '<div class="hand"><div class="empty">Your hand is empty.</div></div>';
+  const hs = sortedHand(pl.hand, me); let h = '', first = true;
+  for (const [g, label, col] of HGROUPS) { const cs = hs.filter(c => hgOf(c) === g); if (!cs.length) continue;
+    h += `<div class="hgrp"><div class="hgl" style="--c:${col}"><i></i>${label} <small>${cs.length}</small>${first && pl.hand.length > 1 ? '<span class="hint"><span class="hf">Drag cards to sort them</span><span class="hc">Hold a card, then drag to sort</span></span>' : ''}</div>
+      <div class="hand" data-grp="${g}" data-me="${me}">${cs.map(c => cardTile(c, { act: 'hcard', sel: S.selCard === c.uid, off: mode && !(tn.play[c.uid] || []).length })).join('')}</div></div>`; first = false; }
+  return h; }
 function renderGame() {
   const V = S.V, me = actor(), cover = S.mode === 'local' ? S.cover : null;
   const prm = V.prompt, tn = V.turn;
@@ -11610,8 +11667,8 @@ function renderGame() {
   const tcards = pl => pl.ti.filter(t => IMGU.cards[t.d]).map(t => { const d = CARDS[t.d]; return `<button class="tcard ${t.on ? 'out' : ''}" style="--f:${fcol(d.faction)}" data-act="zoom" data-z="card:${t.d}" title="${esc(d.name + ' · ' + d.text)}" aria-label="${esc(d.name)}, titan, ${t.on ? 'in play' : 'ready'}. Tap to enlarge."><img src="${IMGU.cards[t.d]}" alt="" draggable="false"><span class="stb">${t.on ? 'in play' : 'ready'}</span></button>`; }).join('');
   let h = `${errBox()}<div class="score">${V.players.map((pl, i) => { const tc = tcards(pl); return `<div class="pl ${V.cur === i ? 'turn' : ''} ${tc ? 'hasti' : ''}"><span class="nm">${esc(pl.name)}${i === me && S.mode !== 'local' ? ' <span class="chip">you</span>' : ''}${pl.bot ? ' <span class="chip">Computer</span>' : ''}</span><span class="vp">${pl.vp}<small>VP</small></span>
     <span class="fs">${pl.f.map(chip).join('')}</span><span class="cnt"><span>Hand ${pl.hand.length}</span><span>Deck ${pl.deck}</span><span>Discard ${pl.disc.length}</span>${pl.ti.filter(t => !IMGU.cards[t.d]).map(t => `<span class="tinfo" title="${esc(CARDS[t.d].text)}">♛ ${esc(CARDS[t.d].name)} ${t.on ? '(in play)' : '(ready)'}</span>`).join('')}${pl.sta.map(e => `<span class="tinfo">${esc(CARDS[e.d].name)} in stasis (${e.n})</span>`).join('')}</span>${tc ? `<div class="tcards">${tc}</div>` : ''}</div>`; }).join('')}</div>
-    <div class="bar"><div class="phase">${(V.uses.madness || V.uses.monsters) && !V.over ? `<span class="decks">${V.uses.madness ? `Madness deck ${V.dk.mad}` : ''}${V.uses.monsters ? ` · Monsters ${V.dk.mon} · Treasure ${V.dk.tr}` : ''}</span><br>` : ''}${V.over ? 'Game over' : `${pn(V.cur)}’s turn · minion <b>${V.tm[0]}</b> · action <b>${V.tm[1]}</b> left`}${S.mode !== 'local' && !V.over && waitP != null && waitP !== me ? ` · <span class="btxt">waiting for ${pn(waitP)}</span>` : ''}${S.thinking != null && !V.over ? ' · <span class="btxt">thinking…</span>' : ''}</div>
-      <div class="row"><button class="btn ghost" data-act="undo" ${V.cu && !V.undo ? '' : 'disabled'}>Undo</button><button class="btn ghost" data-act="discards">Discard piles</button><button class="btn ghost" data-act="log">${S.showLog ? 'Hide log' : 'Show log'}</button>${S.mode === 'async' && me >= 0 ? '<button class="btn ghost" data-act="seatkey">Seat key</button>' : ''}${nfBtn()}${chatBtn()}<button class="btn ghost" data-act="${S.mode === 'local' ? 'quit' : 'leave'}">${S.mode === 'local' ? 'New game' : S.mode === 'async' ? 'My games' : 'Leave room'}</button></div></div>${S.mode === 'async' ? asyncNote(V, me, waitP) : ''}`;
+    <div class="bar"><div class="phase">${(V.uses.madness || V.uses.monsters) && !V.over ? `<span class="decks">${V.uses.madness ? `Madness deck ${V.dk.mad}` : ''}${V.uses.monsters ? ` · Monsters ${V.dk.mon} · Treasure ${V.dk.tr}` : ''}</span><br>` : ''}${V.over ? 'Game over' : `${pn(V.cur)}’s turn ${leftPills(V, tn && tn.p === me && S.mode !== 'local' || (S.mode === 'local' && tn && cover == null && tn.p === me))}`}${S.mode !== 'local' && !V.over && waitP != null && waitP !== me ? ` · <span class="btxt">waiting for ${pn(waitP)}</span>` : ''}${S.thinking != null && !V.over ? ' · <span class="btxt">thinking…</span>' : ''}</div>
+      <div class="row"><button class="btn ghost" data-act="undo" ${V.cu && !V.undo ? '' : 'disabled'}>Undo</button><button class="btn ghost" data-act="remind" aria-pressed="${S.remind}" title="Warn me before I end a turn with minion or action plays left">Reminders: ${S.remind ? 'on' : 'off'}</button><button class="btn ghost" data-act="discards">Discard piles</button><button class="btn ghost" data-act="log">${S.showLog ? 'Hide log' : 'Show log'}</button>${S.mode === 'async' && me >= 0 ? '<button class="btn ghost" data-act="seatkey">Seat key</button>' : ''}${nfBtn()}${chatBtn()}<button class="btn ghost" data-act="${S.mode === 'local' ? 'quit' : 'leave'}">${S.mode === 'local' ? 'New game' : S.mode === 'async' ? 'My games' : 'Leave room'}</button></div></div>${S.mode === 'async' ? asyncNote(V, me, waitP) : ''}`;
   h += `<div class="gl">${renderTray(V)}${renderLastTray(V)}<div class="gm">`;
   h += renderBoard(prm && prm.p === me ? prm : null, cover);
   if (S.showLog) h += `<div class="sect"><h2>Table log</h2></div><ul class="log">${V.log.slice().reverse().map(logItem).join('')}</ul>`;
@@ -11620,8 +11677,8 @@ function renderGame() {
     h += `<div class="sect"><h2>${esc(pl.name)}’s hand</h2><span class="btxt">${pl.hand.length} card${pl.hand.length === 1 ? '' : 's'}</span></div>`;
     h += inspector(me, mode);
     if (mode && tn.opts.length) h += `<div class="label" style="margin-bottom:6px">Talents and special plays</div><div class="opts" style="margin-bottom:12px">${tn.opts.map(o => `<button class="btn" data-act="opt" data-id="${esc(o.id)}">${esc(o.label)}</button>`).join('')}</div>`;
-    h += `<div class="hand">${pl.hand.length ? pl.hand.map(c => cardTile(c, { act: 'hcard', sel: S.selCard === c.uid, off: mode && !(tn.play[c.uid] || []).length })).join('') : '<div class="empty">Your hand is empty.</div>'}</div>`;
-    if (mode) h += `<div class="row" style="margin-top:16px"><button class="btn primary" data-act="end">Done playing: score bases and draw</button></div>`; }
+    h += renderHand(pl, me, mode, tn);
+    if (mode) h += `<div class="endrow">${leftPills(V, true)}<button class="btn primary" data-act="end">Done playing: score bases and draw</button></div>`; }
   else if (me === -1 && S.mode === 'async') h += `<div class="sect"><h2>Watching</h2></div><div class="insp"><p class="btxt" style="margin:0 0 8px">You aren’t seated in this game on this device. If one of the seats is yours, enter its seat key (any player in the game can see theirs under “Seat key”).</p><div class="row"><input type="text" id="skey" maxlength="6" placeholder="SEAT KEY" aria-label="Seat key" style="width:9em;text-transform:uppercase;font:600 16px var(--mono);letter-spacing:.15em;padding:10px 12px;border-radius:9px;border:1.5px solid var(--line);background:var(--surface-2);color:var(--ink)"><button class="btn primary" data-act="claim">Take my seat</button></div></div>`;
   else if (me === -1 && S.mode !== 'local') h += `<div class="sect"><h2>Spectating</h2></div><div class="empty">You are watching this game.</div>`;
   return h + '</div></div>'; }
@@ -11656,6 +11713,10 @@ function renderLayer() {
         <button class="btn" data-act="vote" data-y="0" ${local ? 'data-s="' + u.need[0] + '"' : ''}>${u.need.includes(me) || local ? 'Decline' : 'Cancel'}</button></div></div></div>`; }
   else if (S.mode === 'local' && S.cover != null) h += `<div class="overlay"><div class="panel"><div class="label">Pass the device</div><h2>${pn(S.cover)}, you’re up</h2><p class="btxt" style="margin:0">Everyone else look away. Your hand is shown once you tap the button.</p><button class="btn primary" data-act="seat" data-p="${S.cover}">I’m ${pn(S.cover)}</button></div></div>`;
   else if (V.over) h += `<div class="overlay"><div class="panel"><div class="label">Final scores</div><h2>${V.wins.length > 1 ? V.wins.map(pn).join(' and ') + ' share the win' : pn(V.win) + ' wins'}</h2><ul class="dlist">${V.players.map((p, i) => ({ p, i })).sort((a, b) => (V.adj ? V.adj[b.i] - V.adj[a.i] : b.p.vp - a.p.vp)).map(({ p, i }) => `<li><span>${esc(p.name)}</span><b class="mono">${V.uses.madness && V.mdn ? `${p.vp} VP − ${Math.floor(V.mdn[i] / 2)} for ${V.mdn[i]} Madness = ${V.adj[i]}` : p.vp + ' VP'}</b></li>`).join('')}</ul><div class="row"><button class="btn primary" data-act="${S.mode === 'local' ? 'quit' : 'leave'}">${S.mode === 'local' ? 'Play again' : S.mode === 'async' ? 'Back to my games' : 'Leave room'}</button></div></div></div>`;
+  else if (S.modal === 'endconfirm' && V.turn && V.turn.p === actor()) { const L = playsLeft(V), parts = [];
+    if (L.m) parts.push(`<span class="left lm"><b>${V.tm[0]}</b> minion${V.tm[0] === 1 ? '' : 's'}</span>`); if (L.a) parts.push(`<span class="left la"><b>${V.tm[1]}</b> action${V.tm[1] === 1 ? '' : 's'}</span>`); if (L.held) parts.push(`<span class="left zero"><b>${L.held}</b> held extra play${L.held === 1 ? '' : 's'}</span>`);
+    h += `<div class="overlay" data-act="closemodal"><div class="panel" data-stop="1"><div class="label">Reminder</div><h2>You can still play this turn</h2><p class="btxt" style="margin:0">You have ${parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts[0]} left that you could play. End your turn anyway?</p>
+      <div class="row"><button class="btn primary" data-act="closemodal">Keep playing</button><button class="btn" data-act="endyes">End my turn</button></div><p class="btxt" style="margin:0">Turn these reminders off with the “Reminders” button above the board.</p></div></div>`; }
   else if (S.modal === 'seatkey' && S.A) { const me = actor(), k = S.A.keys[me] || '—';
     h += `<div class="overlay" data-act="closemodal"><div class="panel" data-stop="1"><div class="label">Seat key</div><h2 class="mono" style="letter-spacing:.2em">${esc(k)}</h2><p class="btxt" style="margin:0">To carry on from another phone or computer, open My games there, join with code <b class="mono">${esc(S.A.code)}</b>, and enter this key to take your seat.</p><button class="btn primary" data-act="closemodal">Close</button></div></div>`; }
   else if (S.modal === 'zoom' && (S.zoom || S.zoomId)) { const z = S.zoomId || {}, zd = z.k === 'base' ? (typeof BASES !== 'undefined' ? BASES[z.id] : null) : CARDS[z.id];
@@ -11695,6 +11756,7 @@ document.addEventListener('click', e => {
     case 'aopen': return void openByCode(el.dataset.c);
     case 'aremove': { const c = el.dataset.c; if (S.my) { if (S.my.subs[c]) { try { S.my.subs[c](); } catch (e) {} delete S.my.subs[c]; } delete S.my.rows[c]; } myBadge(); render(); return void rememberGame(c, true); }
     case 'seatkey': S.modal = 'seatkey'; return render();
+    case 'remind': S.remind = !S.remind; try { localStorage.setItem('suRemind', S.remind ? '1' : '0'); } catch (e) {} nfToast(S.remind ? 'Reminders on: you’ll be asked before ending a turn with plays left.' : 'Reminders off.'); return render();
     case 'claim': return void claimSeat();
     case 'join': return void joinRoom();
     case 'leave': return leaveRoom();
@@ -11714,6 +11776,8 @@ document.addEventListener('click', e => {
     case 'chat': S.chat.open = !S.chat.open; chatSync(); if (S.chat.open) { const i = document.getElementById('chatin'); if (i) i.focus(); } return;
     case 'chatsend': chatSend(); { const i = document.getElementById('chatin'); if (i) i.focus(); } return;
     case 'dstart': if (S.screen === 'setup') return startLocalDraft(); return hostStartDraft();
+    case 'dmove': { const o = draftOrder().map(p => p.k), i = +el.dataset.i, j = i + +el.dataset.d; if (j < 0 || j >= o.length) return; [o[i], o[j]] = [o[j], o[i]]; S.dorder = o; return render(); }
+    case 'dshuffle': { const o = draftOrder().map(p => p.k); for (let i = o.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [o[i], o[j]] = [o[j], o[i]]; } S.dorder = o; return render(); }
     case 'dpick': if (S.screen === 'draft') return localDraftPick(el.dataset.f); return sendDraftPick(el.dataset.f);
     case 'dcancel': if (S.screen === 'draft') { S.draft = null; if (S.dtimer) { clearTimeout(S.dtimer); S.dtimer = null; } S.screen = 'setup'; return render(); } return hostCancelDraft();
     case 'dundo': { const D = S.draft; if (!D || !D.picks.length) return; if (S.dtimer) { clearTimeout(S.dtimer); S.dtimer = null; } D.picks.pop(); while (D.picks.length && S.setup.players[+draftCur(D).slice(1)].ai) D.picks.pop(); return render(); }
@@ -11734,11 +11798,12 @@ document.addEventListener('click', e => {
     case 'closemodal': if (S.modal === 'zoom' && S.zoomBack) { S.modal = S.zoomBack; S.zoomBack = null; } else S.modal = null; return render();
     case 'zoom': { const zz = el.dataset.z, zi = zz.indexOf(':'), k = zz.slice(0, zi), id = zz.slice(zi + 1); S.zoom = (k === 'base' ? IMGU.bases[id] : IMGU.cards[id]) || ''; S.zoomId = { k, id }; S.zoomBack = S.modal === 'discards' ? 'discards' : null; S.modal = 'zoom'; return render(); }
     case 'log': S.showLog = !S.showLog; return render();
-    case 'hcard': { const u = +el.dataset.uid; S.selCard = S.selCard === u ? null : u; S.inspect = null; return render(); }
+    case 'hcard': { if (DG.just) return; const u = +el.dataset.uid; S.selCard = S.selCard === u ? null : u; S.inspect = null; return render(); }
     case 'inspect': if (S.V && S.V.prompt && S.V.prompt.p === actor()) return; S.inspect = +el.dataset.uid; S.selCard = null; return render();
   }
   const V = S.V; if (!V) return;
-  if (a === 'end') return void send({ type: 'end' });
+  if (a === 'end') { if (S.remind) { const L = playsLeft(V); if (L.m || L.a || L.held) { S.modal = 'endconfirm'; return render(); } } return void send({ type: 'end' }); }
+  if (a === 'endyes') { S.modal = null; render(); return void send({ type: 'end' }); }
   if (a === 'opt') return void send({ type: 'opt', id: el.dataset.id });
   if (a === 'play' && S.selCard != null) return void send({ type: 'play', uid: S.selCard, mode: el.dataset.m });
   const pr = V.prompt; if (!pr) return;
@@ -11755,6 +11820,35 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && S.A
 window.addEventListener('pagehide', () => { if (S.A && S.A.dirty) asyncFlush(); });
 window.addEventListener('beforeunload', e => { if (S.A && (S.A.dirty || S.A.writing)) { asyncFlush(); e.preventDefault(); e.returnValue = ''; } });
 try { if (localStorage.getItem('suAsync') === '1') setTimeout(() => { asyncLoadMine().then(() => { if (S.screen === 'home') { S.err = ''; render(); } }); }, 400); } catch (e) {}
+
+/* ---------- drag to sort the hand (mouse: drag; touch: press and hold, then drag) ---------- */
+const DG = { st: null, on: false, just: false, ghost: null, tm: null, mark: null };
+function dgMark(el, cls) { if (DG.mark && (DG.mark[0] !== el || DG.mark[1] !== cls)) DG.mark[0].classList.remove(DG.mark[1]); DG.mark = el ? [el, cls] : null; if (el) el.classList.add(cls); }
+function dgStart() { const st = DG.st; if (!st) return; DG.on = true; const src = st.el; const r = src.getBoundingClientRect();
+  const gh = src.cloneNode(true); gh.classList.add('dragghost'); gh.style.width = r.width + 'px'; gh.style.left = (st.x - st.ox) + 'px'; gh.style.top = (st.y - st.oy) + 'px'; document.body.appendChild(gh); DG.ghost = gh;
+  src.classList.add('dragging'); try { navigator.vibrate && navigator.vibrate(15); } catch (e) {} }
+function dgTarget(x, y) { const st = DG.st; const row = document.querySelector(`.hand[data-grp="${st.grp}"]`); if (!row) return null;
+  const cards = [...row.querySelectorAll('.card[data-uid]')].filter(c => +c.dataset.uid !== st.uid); if (!cards.length) return null;
+  let best = null, bd = 1e9; for (const c of cards) { const r = c.getBoundingClientRect(); const cx = r.left + r.width / 2, cy = r.top + r.height / 2; const d = Math.hypot((x - cx) / r.width, (y - cy) / r.height); if (d < bd) { bd = d; best = { c, after: x > cx }; } }
+  return bd < 1.6 ? best : null; }
+function dgEnd(drop) { const st = DG.st; clearTimeout(DG.tm); if (DG.ghost) DG.ghost.remove(); DG.ghost = null; dgMark(null);
+  if (DG.on && st) { DG.just = true; setTimeout(() => { DG.just = false; }, 0);
+    if (drop) { const t = dgTarget(drop.x, drop.y); const V = S.V; const me = st.me;
+      if (t && V && V.players[me]) { const key = hordKey(me); const all = sortedHand(V.players[me].hand, me).map(c => c.uid).filter(u => u !== st.uid); const tu = +t.c.dataset.uid; let i = all.indexOf(tu); if (i >= 0) { if (t.after) i++; all.splice(i, 0, st.uid); S.hord[key] = all; } } }
+    document.querySelectorAll('.hand .card.dragging').forEach(e => e.classList.remove('dragging')); render(); }
+  DG.st = null; DG.on = false; }
+document.addEventListener('pointerdown', e => { if (e.button > 0) return; const el = e.target.closest && e.target.closest('.hand[data-grp] .card[data-uid]'); if (!el || e.target.closest('.zm')) return;
+  const row = el.closest('.hand'); const r = el.getBoundingClientRect();
+  DG.st = { el, uid: +el.dataset.uid, grp: row.dataset.grp, me: +row.dataset.me, x: e.clientX, y: e.clientY, ox: e.clientX - r.left, oy: e.clientY - r.top, touch: e.pointerType !== 'mouse', id: e.pointerId };
+  if (DG.st.touch) DG.tm = setTimeout(dgStart, 380); });
+document.addEventListener('pointermove', e => { const st = DG.st; if (!st || e.pointerId !== st.id) return;
+  if (!DG.on) { const d = Math.hypot(e.clientX - st.x, e.clientY - st.y); if (st.touch) { if (d > 10) { clearTimeout(DG.tm); DG.st = null; } return; } if (d < 6) return; dgStart(); }
+  if (DG.ghost) { DG.ghost.style.left = (e.clientX - st.ox) + 'px'; DG.ghost.style.top = (e.clientY - st.oy) + 'px'; }
+  const t = dgTarget(e.clientX, e.clientY); dgMark(t ? t.c : null, t ? (t.after ? 'drop-after' : 'drop-before') : ''); e.preventDefault(); });
+document.addEventListener('pointerup', e => { if (!DG.st || e.pointerId !== DG.st.id) return; dgEnd({ x: e.clientX, y: e.clientY }); });
+document.addEventListener('pointercancel', e => { if (DG.st && e.pointerId === DG.st.id) dgEnd(null); });
+document.addEventListener('touchmove', e => { if (DG.on) e.preventDefault(); }, { passive: false });
+document.addEventListener('contextmenu', e => { if (DG.st && DG.st.touch) e.preventDefault(); });
 render();
 })();
 
