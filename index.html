@@ -328,7 +328,7 @@ details.rules li { margin: 4px 0; }
 </style>
 
 <div class="wrap" id="app"></div>
-<div class="ver" aria-label="Page version">Version Oct 23 04:13 UTC</div>
+<div class="ver" aria-label="Page version">Version Oct 23 04:18 UTC</div>
 <div id="layer"></div>
 <div id="chatdock"></div><div id="toast" role="status" aria-live="polite"></div>
 
@@ -11834,7 +11834,8 @@ document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target &&
 document.addEventListener('change', e => { const t = e.target;
   if (t.getAttribute && t.getAttribute('data-lname') && S.room) { const nm = t.value.trim().slice(0, 18) || 'Player'; S.myName = nm; saveName(); FB.db.doc(rpath(S.room.code) + '/players/' + FB.uid).update({ name: nm }).catch(() => {}); } });
 document.addEventListener('click', e => {
-  if (e.target.closest('[data-stop]') && !e.target.closest('[data-act]')) return;
+  /* a click inside a panel (data-stop) never reaches the overlay's close action behind it — only buttons inside the panel act */
+  { const st = e.target.closest('[data-stop]'), ac = e.target.closest('[data-act]'); if (st && (!ac || ac.contains(st))) return; }
   const el = e.target.closest('[data-act]'); if (!el) return; const a = el.dataset.act;
   switch (a) {
     case 'noop': return;
