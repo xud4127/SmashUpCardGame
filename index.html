@@ -243,6 +243,19 @@ details.rules li { margin: 4px 0; }
 .acct{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline;margin:2px 0 0}.linkbtn{background:none;border:0;padding:0;font:600 13px var(--body);color:var(--accent);text-decoration:underline;cursor:pointer}
 .acctp input{font:600 16px var(--body);padding:10px 12px;border-radius:9px;border:1.5px solid var(--line);background:var(--surface-2);color:var(--ink);width:100%;box-sizing:border-box}
 .setrow .spseg{display:flex;flex-wrap:wrap;flex:1 1 100%}.setrow .spseg button{flex:1 1 auto}
+.awaypanel{margin:10px 0 4px;padding:12px 14px;border:2px solid var(--hl);border-radius:12px;background:var(--surface);box-shadow:var(--shadow);display:grid;gap:8px}
+.awaypanel h2{font-family:var(--display);font-weight:400;font-size:22px}
+.recap{list-style:none;margin:0;padding:0;display:grid;gap:2px;max-height:240px;overflow:auto;font:500 13px var(--body);color:var(--ink)}
+.recap li{padding:1px 0}.recap li.th{margin-top:6px;font:700 11px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}.recap li.more{color:var(--muted)}
+.recap.small{max-height:150px;font-size:12.5px}
+.awaydet{text-align:left}.awaydet summary{cursor:pointer;font:600 13px var(--body);color:var(--muted)}.awaydet .recap{margin-top:6px;max-height:200px}
+.rpbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;margin:0 0 12px;padding:12px 14px;border:2px solid var(--ink);border-radius:12px;background:var(--surface);box-shadow:var(--shadow);display:grid;gap:8px}
+.rpctl{gap:6px}.rpctl .btn{padding:6px 12px}
+#rpslider{width:100%;accent-color:var(--accent)}
+.hps{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:2px}.hp{font-size:13px}.hp small{color:var(--muted)}.hp.won b{color:var(--good)}.hp.won b::after{content:" ★"}
+.tblwrap{overflow-x:auto;margin-bottom:12px}.stbl{border-collapse:collapse;min-width:420px;width:100%;font:500 14px var(--body);background:var(--surface);border-radius:10px;overflow:hidden}
+.stbl th,.stbl td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--line)}.stbl th:first-child,.stbl td:first-child{text-align:left}.stbl th{font:700 11px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--surface-2)}
+.stbl tr.me td{background:color-mix(in srgb,var(--hl) 14%,transparent)}
 .mglist{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:10px}
 .mg{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow)}
 .mg.up{border:2px solid var(--accent)}
@@ -328,7 +341,7 @@ details.rules li { margin: 4px 0; }
 </style>
 
 <div class="wrap" id="app"></div>
-<div class="ver" aria-label="Page version">Version Oct 23 04:18 UTC</div>
+<div class="ver" aria-label="Page version">Version Oct 23 04:52 UTC</div>
 <div id="layer"></div>
 <div id="chatdock"></div><div id="toast" role="status" aria-live="polite"></div>
 
@@ -8669,7 +8682,7 @@ SmashUp.faction("slashers", { name: "Slashers", set: "Promos & Standalone", colo
       minionPlayed: async (g, b, ev) => { if (ev.base === b && ev.m.controller != null) await afterPlay(g, b, ev.p); },
       actionPlayed: async (g, b, ev) => { const tb = ev.target && (ev.target.minions ? ev.target : ev.target.base); if (tb === b) await afterPlay(g, b, ev.p); } } }; })());
 
-  F.base("base", "Base", 22, [5, 3, 2], "Before this base scores, destroy the minion(s) here with the least power. If tied, destroy all tied minions.", {
+  F.base("base", "Nightmare Realm", 22, [5, 3, 2], "Before this base scores, destroy the minion(s) here with the least power. If tied, destroy all tied minions.", {
     on: { beforeScore: async (g, b, ev) => { if (ev.b !== b || !b.minions.length) return; const lo = Math.min(...b.minions.map(m => g.powerOf(m)));
       for (const m of b.minions.filter(x => g.powerOf(x) === lo)) await g.destroy(m, { player: null, kind: 'base' }); } } });
 });
@@ -11092,7 +11105,7 @@ function applyAnswer(msg, from) {
   const pe = S.pend; if (!pe || msg.seq !== pe.seq || S.undoReq) return;
   if (from !== undefined && S.seats && from !== S.seats[pe.p]) return;
   const n = AI.toNative(S.g, pe, msg.v); if (!n.ok) return;
-  S.log.push({ p: pe.p, k: pe.kind, v: msg.v === undefined ? null : msg.v, h: !botLvl(pe.p), label: labelOf(pe, msg.v) });
+  markLog(); S.log.push({ p: pe.p, k: pe.kind, v: msg.v === undefined ? null : msg.v, h: !botLvl(pe.p), label: labelOf(pe, msg.v) });
   if (S.mode === 'async' && S.A) { if (from !== undefined) S.A.driver = true; asyncSave(from !== undefined); }
   S.pend = null; S.selCard = null; S.inspect = null; pushView(); pe.res(n.r); }
 
@@ -11110,20 +11123,24 @@ function canSetSp(me) { if (!S.g || S.g.over || me == null || me < 0 || !S.pend 
   if (S.mode === 'local') return !botLvl(me); if (S.mode === 'async') return !!S.A && S.A.booted && !S.A.feeding && S.pend.p === me; return false; }
 function setSp(me, sp) { if (!canSetSp(me)) return false; const g = S.g; if ((g.spPref[me] || null) === (sp || null)) return true;
   const e = { p: me, k: 'set', v: { sp: sp || null }, h: false, label: g.players[me].name + ' changed their Specials setting' };
-  S.log.push(e); applySet(g, e); if (S.mode === 'async') asyncSave(true); pushView(); return true; }
+  markLog(); S.log.push(e); applySet(g, e); if (S.mode === 'async') asyncSave(true); pushView(); return true; }
+/* the "played this turn / last turn" trays: actions (from the engine's list) and minions, in the order they were played */
+function wrapGame(g) {
+  const feed = () => { const t = g.turn, f = t.__feed = t.__feed || [], pl = t.played || []; t.__pa = t.__pa || 0; while (t.__pa < pl.length) { const e = pl[t.__pa++]; f.push({ uid: e.uid, d: e.d, p: e.p, tg: e.tg }); } return f; }; g.feed = feed;
+    const opm = g.playMinion; g.playMinion = async function (p, card, base, o) { if (p != null && card && card.def && !(o && (o.uncontrolled || o.silent))) feed().push({ uid: card.uid, d: card.def.id, p, tg: base && base.def ? base.def.name : null, m: 1 }); return opm.apply(this, arguments); };
+    const ot = g.takeTurn; g.takeTurn = async () => { const who = g.current; await ot(); g.prevTurn = { p: who, pt: feed().slice() }; }; }
+function markLog() { if (S.marks && S.glog) S.marks[S.log.length] = S.glog.length; }
 function makeGame(log) {
   let i = 0, g;
-  const step = (pe, live) => { while (i < log.length && log[i].k === 'set') applySet(g, log[i++]); if (i >= log.length) { S.replaying = false; return live(); }
-    const e = log[i++], n = AI.toNative(g, pe, e.v); if (!n.ok || e.p !== pe.p || e.k !== pe.kind) throw new Error('Could not rewind the game.'); return Promise.resolve(n.r); };
-  const rh = { onChange() { host.onChange(); },
+  const step = (pe, live) => { while (i < log.length && log[i].k === 'set') { S.marks[i] = S.glog.length; applySet(g, log[i++]); } if (i >= log.length) { S.replaying = false; return live(); }
+    S.marks[i] = S.glog.length; const e = log[i++], n = AI.toNative(g, pe, e.v); if (!n.ok || e.p !== pe.p || e.k !== pe.kind) throw new Error('Could not rewind the game.'); return Promise.resolve(n.r); };
+  S.glog = []; S.marks = [];
+  const rh = { onChange() { host.onChange(); }, onLog(m) { S.glog.push(m); },
     ask(gg, p, spec) { return step({ kind: 'prompt', p, spec }, () => host.ask(gg, p, spec)); },
     chooseTurnAction(gg, p, info) { return step({ kind: 'turn', p, info }, () => host.chooseTurnAction(gg, p, info)); } };
   S.replaying = log.length > 0; g = SU.createGame({ players: S.cfg.players, host: rh, seed: S.cfg.seed, first: S.cfg.first }); S.g = g;
-  /* the "played this turn / last turn" trays: actions (from the engine's list) and minions, in the order they were played */
-  { const feed = () => { const t = g.turn, f = t.__feed = t.__feed || [], pl = t.played || []; t.__pa = t.__pa || 0; while (t.__pa < pl.length) { const e = pl[t.__pa++]; f.push({ uid: e.uid, d: e.d, p: e.p, tg: e.tg }); } return f; }; g.feed = feed;
-    const opm = g.playMinion; g.playMinion = async function (p, card, base, o) { if (p != null && card && card.def && !(o && (o.uncontrolled || o.silent))) feed().push({ uid: card.uid, d: card.def.id, p, tg: base && base.def ? base.def.name : null, m: 1 }); return opm.apply(this, arguments); };
-    const ot = g.takeTurn; g.takeTurn = async () => { const who = g.current; await ot(); g.prevTurn = { p: who, pt: feed().slice() }; }; } AI.hook(g); S.ai = AI.create(g, { SU, snapshot: () => ({ cfg: S.cfg, log: S.log.slice() }) });
-  g.run().then(async () => { if (S.g !== g) return; S.replaying = false; pushView(); if (S.mode === 'async') asyncSave(); if (S.mode === 'host' && S.room) { try { await FB.db.doc(rpath(S.room.code)).update({ status: 'done' }); } catch (e) {} } })
+  wrapGame(g); AI.hook(g); S.ai = AI.create(g, { SU, snapshot: () => ({ cfg: S.cfg, log: S.log.slice() }) });
+  g.run().then(async () => { if (S.g !== g) return; S.replaying = false; pushView(); if (S.mode === 'local' && g.over) saveLocalGame(g); if (S.mode === 'async') asyncSave(); if (S.mode === 'host' && S.room) { try { await FB.db.doc(rpath(S.room.code)).update({ status: 'done' }); } catch (e) {} } })
     .catch(err => { if (S.g !== g) return; S.replaying = false; console.error(err); S.err = S.mode === 'async' && /rewind/.test(String(err && err.message)) ? 'This game’s saved moves don’t fit this version of the rules, so it can’t be rebuilt here. (The page was updated while the game was in progress.)' : 'Something went wrong: ' + (err && err.message || err); render(); }); }
 function startEngine(players, mode, bots, first) {
   S.bots = bots || []; S.mode = mode; S.pend = null; S.seqN = 0; S.cover = null; S.seat = null; S.modal = null; lastW = ''; S.undoReq = null; S.log = [];
@@ -11341,7 +11358,7 @@ function setBots(bots) { S.room.bots = bots; render(); FB.db.doc(rpath(S.room.co
    The game is the room's setup (players, seed) plus a shared list of every answer. Every browser rebuilds the game from that list,
    so nobody has to keep a tab open: whoever the game is waiting on opens it, answers, and the new answers are saved for the next person.
    Storage: rooms/<code>/state/head {rev, n, tag, t, fp[]} and rooms/<code>/state/c000, c001, … {m: [answers]} (CH answers per chunk). */
-const RULES_VER = '568917b919';
+const RULES_VER = '1751d0f328';
 const CH = 200;
 const ahash = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(16); };
 const sameE = (a, b) => a && b && a.p === b.p && a.k === b.k && JSON.stringify(a.v === undefined ? null : a.v) === JSON.stringify(b.v === undefined ? null : b.v);
@@ -11391,11 +11408,11 @@ function asyncRebuild(R) { S.log = R.slice(); S.pend = null; S.selCard = null; S
 /* feed answers that arrived from the database to the question the game is waiting on */
 function asyncFeed(pe) {
   const A = S.A; if (S.mode !== 'async' || !A) return false;
-  while (A.inq.length && A.inq[0].k === 'set') { const s = A.inq.shift(); S.log.push(s); applySet(S.g, s); }
+  while (A.inq.length && A.inq[0].k === 'set') { const s = A.inq.shift(); markLog(); S.log.push(s); applySet(S.g, s); }
   if (!A.inq.length) { if (A.feeding) { A.feeding = false; S.replaying = false; } return false; }
   const e = A.inq.shift(); const n = AI.toNative(S.g, pe, e.v);
   if (!n.ok || e.p !== pe.p || e.k !== pe.kind) { const R = A.remote.slice(); setTimeout(() => asyncRebuild(R), 0); return true; }
-  S.log.push(e); S.pend = null; pe.res(n.r); return true; }
+  markLog(); S.log.push(e); S.pend = null; pe.res(n.r); return true; }
 function asyncFeedPending() { const A = S.A, pe = S.pend; if (!A || !A.inq.length) return; if (!pe) return;   // the engine asks next; host.ask feeds it
   A.feeding = true; S.replaying = true; if (!asyncFeed(pe)) pushView(); }
 /* save: coalesce a run of computer-player answers, save at once when a person is up */
@@ -11447,9 +11464,9 @@ async function asyncLoadMine() {
   const M = S.my = S.my || { rows: {}, subs: {}, loaded: false };
   try { const s = await FB.db.doc(myIdx()).get(); const codes = Object.keys((s.exists && s.data().games) || {});
     for (const c of Object.keys(M.subs)) if (!codes.includes(c)) { try { M.subs[c](); } catch (e) {} delete M.subs[c]; delete M.rows[c]; }
-    for (const c of codes.slice(0, 40)) if (!M.subs[c]) M.subs[c] = FB.db.doc(rpath(c)).onSnapshot(x => { M.rows[c] = x.exists ? x.data() : { gone: true }; myBadge(); if (S.screen === 'mygames') render(); }, () => {});
+    for (const c of codes.slice(0, 40)) if (!M.subs[c]) M.subs[c] = FB.db.doc(rpath(c)).onSnapshot(x => { M.rows[c] = x.exists ? x.data() : { gone: true }; myBadge(); if (S.screen === 'mygames' || S.screen === 'history') render(); }, () => {});
     M.loaded = true; } catch (e) { S.err = 'Could not load your games.'; }
-  myBadge(); if (S.screen === 'mygames') render(); }
+  myBadge(); if (S.screen === 'mygames' || S.screen === 'history') render(); }
 function myWaiting(d) { if (!d || d.gone || !d.async) return false; if (d.status === 'playing') return !!(d.sum && d.sum.waitUid === FB.uid) || (!d.sum && d.host === FB.uid);
   if (d.status === 'lobby' && d.draft && !draftDone(d.draft)) return draftCur(d.draft) === FB.uid; return false; }
 function myBadge() { const M = S.my; const n = M ? Object.values(M.rows).filter(myWaiting).length : 0; const was = S.myBadge; S.myBadge = n; if (NF.on && was != null && n > was && S.screen !== 'game') nfFire(n === 1 ? 'A game is waiting on you.' : n + ' games are waiting on you.'); if (!NF.flash) document.title = (n ? '(' + n + ') ' : '') + NF.base; }
@@ -11469,7 +11486,7 @@ function renderMyGames() {
     <p class="tag">Your online games wait for whoever is up. Open one when it says it’s your turn, make your move, and close it. Nobody has to stay online.</p></header>${errBox()}
     <div class="row" style="margin:14px 0"><button class="btn primary" data-act="acreate" ${S.busy ? 'disabled' : ''}>Start a new game</button>
       <input type="text" id="acode" value="${esc(S.joinCode)}" maxlength="4" placeholder="CODE" aria-label="Game code" data-in="joinCode" style="width:7.5em;text-transform:uppercase;font:600 16px var(--mono);letter-spacing:.2em;padding:10px 12px;border-radius:9px;border:1.5px solid var(--line);background:var(--surface-2);color:var(--ink)">
-      <button class="btn" data-act="join" ${S.busy ? 'disabled' : ''}>Join with a code</button><button class="btn ghost" data-act="notify" aria-pressed="${NF.on}" title="Chime and notify while this page is open when a game starts waiting on you">${NF.on ? 'Alerts: on' : 'Alert me'}</button><button class="btn ghost" data-act="home">Back</button></div>`;
+      <button class="btn" data-act="join" ${S.busy ? 'disabled' : ''}>Join with a code</button><button class="btn ghost" data-act="notify" aria-pressed="${NF.on}" title="Chime and notify while this page is open when a game starts waiting on you">${NF.on ? 'Alerts: on' : 'Alert me'}</button><button class="btn ghost" data-act="history">Match history &amp; stats</button><button class="btn ghost" data-act="home">Back</button></div>`;
   h += acctLine();
   if (!M.loaded) h += `<div class="empty">Loading your games…</div>`;
   else if (!rows.length) h += `<div class="empty">No games yet. Start one and send the code to your friends.</div>`;
@@ -11546,11 +11563,106 @@ function renderAccount() { const a = S.acct, signed = a && !a.guest;
   </div></div>`; }
 try { if (ACC() && (localStorage.getItem('suAcct') === '1' || localStorage.getItem('suAsync') === '1')) setTimeout(() => acctLoad(true), 300); } catch (e) {}
 
+/* ---------- "while you were away": what happened since this player last ended a turn ---------- */
+function recapFor(me) { if (me == null || me < 0 || !S.glog || !S.marks) return null; const L = S.log; let end = -1;
+  for (let k = L.length - 1; k >= 0; k--) { const e = L[k]; if (e.p === me && e.k === 'turn' && (!e.v || e.v.type === 'end')) { end = k; break; } }
+  if (end < 0 || S.marks[end] == null) return null; const lines = S.glog.slice(S.marks[end]).filter(l => l && !/ ended the turn$/.test(l)); if (!lines.length) return null;
+  return { end, lines }; }
+function recapHtml(R, max) { const ls = R.lines, cut = Math.max(0, ls.length - (max || 80));
+  return `<ul class="recap">${cut ? `<li class="more">… ${cut} earlier line${cut === 1 ? '' : 's'}</li>` : ''}${ls.slice(cut).map(l => /^— .* —$/.test(l) ? `<li class="th">${esc(l.replace(/^— | —$/g, ''))}</li>` : `<li>${esc(l)}</li>`).join('')}</ul>`; }
+const recapKey = () => 'suRecap:' + (S.A ? S.A.code : (S.cfg ? S.cfg.seed : ''));
+function recapSeen() { try { return +localStorage.getItem(recapKey()) || -1; } catch (e) { return -1; } }
+function asyncRecapPanel(V, me) { if (S.mode !== 'async' || !S.A || me < 0 || V.over) return ''; const waitOnMe = (V.prompt && V.prompt.p === me) || (V.turn && V.turn.p === me); if (!waitOnMe) return '';
+  const R = recapFor(me); if (!R || R.end <= recapSeen()) return '';
+  return `<section class="awaypanel" aria-label="While you were away"><div class="row" style="justify-content:space-between"><h2 style="margin:0">While you were away</h2><button class="btn" data-act="recapok" data-end="${R.end}">Got it</button></div>${recapHtml(R, 60)}</section>`; }
+
+/* ---------- match history (finished games) and stats ---------- */
+const HIST_KEY = 'suHist';
+function localHist() { try { return JSON.parse(localStorage.getItem(HIST_KEY) || '[]') || []; } catch (e) { return []; } }
+function saveLocalGame(g) { try { const h = localHist(); const id = 'L' + S.cfg.seed; if (h.some(x => x.id === id)) return;
+    const rec = { id, kind: 'local', t: Date.now(), cfg: S.cfg, bl: (S.bots || []).slice(), players: g.players.map((pl, i) => ({ name: pl.name, f: pl.factions.slice(), bot: !!botLvl(i) })), vp: g.players.map(p => p.vp), wins: g.winners || (g.winner != null ? [g.winner] : []),
+      log: S.log.map(e => ({ p: e.p, k: e.k, v: e.v === undefined ? null : e.v, label: String(e.label || '').slice(0, 80) })) };
+    h.unshift(rec); for (let n = h.length; n > 0; n--) { try { localStorage.setItem(HIST_KEY, JSON.stringify(h.slice(0, Math.min(n, 25)))); return; } catch (e) { } } } catch (e) {} }
+function onlineHist() { const M = S.my; if (!M) return []; const out = [];
+  for (const [code, d] of Object.entries(M.rows)) { if (!d || d.gone || !d.async || !d.cfg) continue; const s = d.sum || {}; if (!(d.status === 'done' || s.over)) continue;
+    const me = d.seats ? d.seats.indexOf(FB.uid) : -1;
+    out.push({ id: 'O' + code, kind: 'online', code, t: s.t || d.t || 0, cfg: d.cfg, bl: d.bl || [], players: d.cfg.players.map((p, i) => ({ name: p.name, f: p.factions || [], bot: !!(d.bl && d.bl[i]), me: i === me })), vp: s.vp || [], wins: s.wins || [] }); }
+  return out; }
+function allHist() { return [...onlineHist(), ...localHist()].sort((a, b) => (b.t || 0) - (a.t || 0)); }
+function histStats(list) { const P = new Map(), F = new Map();
+  const add = (m, k, o) => { if (!m.has(k)) m.set(k, Object.assign({ games: 0, wins: 0, vp: 0 }, o)); return m.get(k); };
+  for (const r of list) r.players.forEach((p, i) => { const won = (r.wins || []).includes(i), vp = r.vp[i] || 0;
+    const key = (p.bot ? 'bot:' : '') + String(p.name || '?').trim().toLowerCase(); const a = add(P, key, { name: p.name + (p.bot ? ' (computer)' : ''), me: 0 }); a.games++; a.wins += won ? 1 : 0; a.vp += vp; if (p.me) a.me++;
+    for (const f of p.f || []) { const b = add(F, f, { name: fname(f) }); b.games++; b.wins += won ? 1 : 0; b.vp += vp; } });
+  const rows = m => [...m.values()].sort((a, b) => b.wins / b.games - a.wins / a.games || b.games - a.games || a.name.localeCompare(b.name));
+  return { players: rows(P), factions: rows(F) }; }
+function renderHistory() {
+  const tab = S.htab || 'matches', list = allHist(), M = S.my;
+  let h = `<header class="hero"><h1 class="logo" style="font-size:clamp(40px,10vw,76px)"><span class="a">MATCH</span><span class="b">HISTORY</span></h1><p class="tag">Finished games — online and hot-seat on this device. Replay any of them move by move.</p></header>${errBox()}
+    <div class="row" style="margin:12px 0"><div class="seg">${[['matches', 'Matches'], ['stats', 'Stats']].map(([k, l]) => `<button data-act="htab" data-t="${k}" aria-pressed="${tab === k}">${l}</button>`).join('')}</div><button class="btn ghost" data-act="home">Home</button><button class="btn ghost" data-act="mygames">My games</button></div>`;
+  if (M && !M.loaded) h += `<div class="empty">Loading your online games…</div>`;
+  if (!list.length) return h + `<div class="empty">No finished games yet. Finished online games and hot-seat games played on this device show up here.</div>`;
+  if (tab === 'matches') {
+    h += `<ul class="mglist">${list.map(r => { const best = Math.max(...r.vp.map(v => v || 0)), won = r.wins || [];
+      const who = r.players.map((p, i) => `<span class="hp ${won.includes(i) ? 'won' : ''}"><b>${esc(p.name)}${p.me ? ' <span class="chip">you</span>' : ''}</b> <span class="mono">${r.vp[i] || 0}</span> <small>${(p.f || []).map(f => esc(fname(f))).join(' + ')}</small></span>`).join('');
+      return `<li class="mg"><div class="mgi"><span class="btxt">${r.kind === 'online' ? 'Online' : 'Hot-seat'} · ${r.t ? new Date(r.t).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : ''} · ${won.length > 1 ? 'shared win' : esc((r.players[won[0]] || {}).name || '') + ' won'}</span><div class="hps">${who}</div></div>
+        <div class="row"><button class="btn primary" data-act="replay" data-id="${esc(r.id)}">Replay</button>${r.kind === 'local' ? `<button class="btn ghost" data-act="hdel" data-id="${esc(r.id)}" aria-label="Delete this game from the history">Delete</button>` : ''}</div></li>`; }).join('')}</ul>`;
+  } else { const st = histStats(list), pct = x => x.games ? Math.round(100 * x.wins / x.games) + '%' : '—', avg = x => x.games ? (x.vp / x.games).toFixed(1) : '—';
+    const table = (rows, first) => `<div class="tblwrap"><table class="stbl"><thead><tr><th>${first}</th><th>Games</th><th>Wins</th><th>Win rate</th><th>Avg VP</th></tr></thead><tbody>${rows.map(x => `<tr class="${x.me ? 'me' : ''}"><td>${esc(x.name)}${x.me ? ' <span class="chip">you</span>' : ''}</td><td>${x.games}</td><td>${x.wins}</td><td>${pct(x)}</td><td>${avg(x)}</td></tr>`).join('')}</tbody></table></div>`;
+    h += `<p class="btxt">From ${list.length} finished game${list.length === 1 ? '' : 's'}. Players are matched by name.</p><div class="sect"><h2>Players</h2></div>${table(st.players, 'Player')}<div class="sect"><h2>Factions</h2></div>${table(st.factions, 'Faction')}`; }
+  return h; }
+async function openHistory() { S.screen = 'history'; S.err = ''; render(); let used = false; try { used = localStorage.getItem('suAsync') === '1'; } catch (e) {} if (used) await asyncLoadMine(); render(); }
+
+/* ---------- replay viewer: rebuilds a finished game step by step from its saved answers ---------- */
+async function openReplay(id) { const r = allHist().find(x => x.id === id); if (!r) return;
+  let log = r.log;
+  if (!log && r.kind === 'online') { S.busy = true; render();
+    try { const hd = await FB.db.doc(rpath(r.code) + '/state/head').get(); const n = hd.exists ? hd.data().n : 0, chunks = [];
+      for (let i = 0; i < Math.ceil(n / CH); i++) { const c = await FB.db.doc(rpath(r.code) + '/state/' + cid(i)).get(); chunks.push(c.exists ? (c.data().m || []) : []); }
+      log = [].concat(...chunks).slice(0, n); } catch (e) { S.busy = false; S.err = 'Could not load that game’s moves.'; return render(); } S.busy = false; }
+  if (!log) return;
+  ensureArt([...r.cfg.players.flatMap(p => p.factions), ...SPECIAL_DECKS]);
+  S.rp = { r, cfg: r.cfg, log, N: log.length, k: 0, target: 0, g: null, pe: null, gen: 0, glog: [], marks: [], done: false, err: '', playing: null, seat: Math.max(0, r.players.findIndex(p => p.me)) };
+  S.mode = 'replay'; S.bots = (r.bl || []).map(x => x || null); S.seats = null; S.log = []; S.pend = null; S.cover = null; S.modal = null; S.selCard = null; S.inspect = null; S.screen = 'replay'; S.V = null;
+  const ends = []; log.forEach((e, i) => { if (e.k === 'turn' && (!e.v || e.v.type === 'end')) ends.push(i); }); S.rp.ends = ends;
+  rpSeek(ends.length ? ends[0] + 1 : Math.min(log.length, 1)); }
+function rpStart(target) { const RP = S.rp, gen = ++RP.gen; RP.k = 0; RP.target = target; RP.glog = []; RP.marks = []; RP.pe = null; RP.done = false; RP.err = '';
+  const q = pe => new Promise(res => { if (RP.gen !== gen || S.rp !== RP) return; pe.res = res; RP.pe = pe; rpPump(gen); });
+  const h = { onChange() {}, onLog(m) { if (RP.gen === gen) RP.glog.push(m); }, ask: (gg, p, spec) => q({ kind: 'prompt', p, spec }), chooseTurnAction: (gg, p, info) => q({ kind: 'turn', p, info }) };
+  const g = SU.createGame({ players: RP.cfg.players, host: h, seed: RP.cfg.seed, first: RP.cfg.first == null ? undefined : RP.cfg.first }); wrapGame(g); AI.hook(g); RP.g = g;
+  g.run().then(() => { if (RP.gen === gen) { RP.done = true; RP.pe = null; rpShow(); } }).catch(e => { if (RP.gen === gen) { console.error(e); RP.err = 'The replay stopped here: this game was played on an earlier version of the rules.'; rpShow(); } }); }
+function rpPump(gen) { const RP = S.rp; if (!RP || RP.gen !== gen) return; const pe = RP.pe; if (!pe) return;
+  while (RP.k < RP.target && RP.log[RP.k] && RP.log[RP.k].k === 'set') { applySet(RP.g, RP.log[RP.k]); RP.marks[RP.k] = RP.glog.length; RP.k++; }
+  if (RP.k >= RP.target) { rpShow(); return; }
+  const e = RP.log[RP.k], n = AI.toNative(RP.g, pe, e.v);
+  if (!n.ok || e.p !== pe.p || e.k !== pe.kind) { RP.err = 'The replay stopped here: this game was played on an earlier version of the rules.'; RP.target = RP.k; RP.N = RP.k; rpShow(); return; }
+  RP.marks[RP.k] = RP.glog.length; RP.k++; RP.pe = null; pe.res(n.r); }
+function rpSeek(t) { const RP = S.rp; if (!RP) return; t = Math.max(0, Math.min(RP.N, t | 0));
+  if (RP.g && !RP.err && t >= RP.k) { if (RP.done) return rpShow(); RP.target = t; if (RP.pe) rpPump(RP.gen); return; }
+  rpStart(t); }
+function rpShow() { const RP = S.rp; if (!RP || S.screen !== 'replay') return; S.g = RP.g; S.pend = null; S.log = []; try { S.V = buildView(); } catch (e) { console.error(e); } artFor(S.V); render(); }
+function rpTurn(d) { const RP = S.rp, k = RP.k; if (d > 0) { const e = RP.ends.find(x => x + 1 > k); rpSeek(e != null ? e + 1 : RP.N); } else { const prev = RP.ends.filter(x => x + 1 < k); rpSeek(prev.length ? prev[prev.length - 1] + 1 : 0); } }
+function rpPlay() { const RP = S.rp; if (RP.playing) { clearInterval(RP.playing); RP.playing = null; return render(); }
+  RP.playing = setInterval(() => { if (S.rp !== RP || RP.k >= RP.N || RP.err) { clearInterval(RP.playing); RP.playing = null; return render(); } rpSeek(RP.k + 1); }, 900); render(); }
+function rpExit() { const RP = S.rp; if (RP && RP.playing) clearInterval(RP.playing); if (RP) RP.gen++; S.rp = null; S.g = null; S.V = null; S.mode = null; S.bots = []; S.screen = 'history'; render(); }
+function renderReplayBar() { const RP = S.rp; if (!RP) return ''; const r = RP.r, e = RP.k > 0 ? RP.log[RP.k - 1] : null;
+  const turnNo = RP.ends.filter(x => x < RP.k).length + 1, what = RP.k > 0 && RP.marks[RP.k - 1] != null ? RP.glog.slice(RP.marks[RP.k - 1]).slice(-8) : [];
+  const nm = p => (r.players[p] || {}).name || '?';
+  const lab = e ? (e.label || (e.k === 'turn' ? (e.v && e.v.type === 'end' ? nm(e.p) + ' ended the turn' : nm(e.p) + ' made a play') : nm(e.p) + ' answered')) : 'Start of the game';
+  return `<section class="rpbar" aria-label="Replay controls"><div class="row" style="justify-content:space-between"><div><div class="label">Replay · ${r.kind === 'online' ? 'online' : 'hot-seat'} game</div><b>${r.players.map(p => esc(p.name)).join(' · ')}</b></div><button class="btn ghost" data-act="rpexit">Back to history</button></div>
+    <div class="row rpctl"><button class="btn ghost" data-act="rpseek" data-to="0" aria-label="Go to the start">⏮</button><button class="btn ghost" data-act="rpturn" data-d="-1">◀ Turn</button><button class="btn ghost" data-act="rpstep" data-d="-1" aria-label="Back one step">◀</button>
+      <button class="btn primary" data-act="rpplay">${RP.playing ? '❚❚ Pause' : '▶ Play'}</button><button class="btn ghost" data-act="rpstep" data-d="1" aria-label="Forward one step">▶</button><button class="btn ghost" data-act="rpturn" data-d="1">Turn ▶</button><button class="btn ghost" data-act="rpseek" data-to="${RP.N}" aria-label="Go to the end">⏭</button></div>
+    <input type="range" id="rpslider" min="0" max="${RP.N}" value="${RP.k}" aria-label="Replay position">
+    <div class="btxt">Turn ${turnNo} · step ${RP.k} of ${RP.N} · <b>${esc(lab)}</b></div>
+    ${what.length ? `<ul class="recap small">${what.map(l => /^— .* —$/.test(l) ? `<li class="th">${esc(l.replace(/^— | —$/g, ''))}</li>` : `<li>${esc(l)}</li>`).join('')}</ul>` : ''}
+    ${RP.err ? `<div class="anote warn">${esc(RP.err)}</div>` : ''}
+    <div class="row"><span class="label">Show the hand of</span><div class="seg">${r.players.map((p, i) => `<button data-act="rpseat" data-p="${i}" aria-pressed="${RP.seat === i}">${esc(p.name)}</button>`).join('')}</div></div></section>`; }
+
 /* ---------- view helpers ---------- */
 const V_ = () => S.V;
 const pn = i => i == null ? 'nobody' : esc(S.V.players[i] ? S.V.players[i].name : '?');
 const order = from => { const n = S.V.players.length; return Array.from({ length: n }, (_, i) => (from + i) % n); };
-const actor = () => S.mode === 'local' ? S.seat : (S.V && S.V.seats ? S.V.seats.indexOf(FB.uid) : -1);
+const actor = () => S.mode === 'replay' ? (S.rp ? S.rp.seat : 0) : S.mode === 'local' ? S.seat : (S.V && S.V.seats ? S.V.seats.indexOf(FB.uid) : -1);
 function chip(id) { return `<span class="chip" style="--f:${fcol(id)}"><i></i>${esc(fname(id))}${FACTIONS[id] && FACTIONS[id].wip ? ' <small class="wipc">WIP</small>' : ''}</span>`; }
 function cardTile(c, o = {}) {
   const d = CARDS[c.d]; const isM = d.type === 'minion' || d.type === 'fusion';
@@ -11574,6 +11686,7 @@ function renderHome() {
       <section class="pcard"><h3 class="h3">Online${S.myBadge ? ` <span class="chip yt">${S.myBadge} waiting on you</span>` : ''}</h3><p class="btxt" style="margin:0">Each player on their own device, at their own pace. Every player moves whenever they’re free; the game waits for whoever is up, and nobody has to stay online.</p>
         <input type="text" id="oname" value="${esc(S.myName)}" maxlength="18" placeholder="Your name" aria-label="Your name" data-in="myName">
         <div class="row"><button class="btn primary" data-act="mygames">My games</button><button class="btn" data-act="acreate" ${S.busy ? 'disabled' : ''}>Start a game</button></div>${acctLine()}</section></div>
+    <div class="row" style="margin:12px 0"><button class="btn" data-act="history">Match history &amp; stats</button></div>
     ${viewSmall() ? `<div class="row" style="margin:12px 0">${viewBtn()}<span class="btxt">Full table shows the whole board zoomed out; phone stacks it with bigger text.</span></div>` : ''}
     <details class="rules"><summary>Rules at a glance</summary><ul>
       <li>Each turn: play one minion and one action (any order), use talents, then bases at their breakpoint score, you draw 2, and play passes left.</li>
@@ -11742,10 +11855,10 @@ function renderGame() {
   if (prm && S.selSeq !== prm.seq) { S.selSeq = prm.seq; S.sel = new Set(prm.pre ? (prm.k === 'cards' ? prm.cands.map(c => c.uid) : []) : []); }
   const waitP = prm ? prm.p : tn ? tn.p : null;
   const tcards = pl => pl.ti.filter(t => IMGU.cards[t.d]).map(t => { const d = CARDS[t.d]; return `<button class="tcard ${t.on ? 'out' : ''}" style="--f:${fcol(d.faction)}" data-act="zoom" data-z="card:${t.d}" title="${esc(d.name + ' · ' + d.text)}" aria-label="${esc(d.name)}, titan, ${t.on ? 'in play' : 'ready'}. Tap to enlarge."><img src="${IMGU.cards[t.d]}" alt="" draggable="false"><span class="stb">${t.on ? 'in play' : 'ready'}</span></button>`; }).join('');
-  let h = `${errBox()}<div class="score">${V.players.map((pl, i) => { const tc = tcards(pl); return `<div class="pl ${V.cur === i ? 'turn' : ''} ${tc ? 'hasti' : ''}"><span class="nm">${esc(pl.name)}${i === me && S.mode !== 'local' ? ' <span class="chip">you</span>' : ''}${pl.bot ? ' <span class="chip">Computer</span>' : ''}</span><span class="vp">${pl.vp}<small>VP</small></span>
+  let h = `${errBox()}<div class="score">${V.players.map((pl, i) => { const tc = tcards(pl); return `<div class="pl ${V.cur === i ? 'turn' : ''} ${tc ? 'hasti' : ''}"><span class="nm">${esc(pl.name)}${i === me && S.mode !== 'local' && S.mode !== 'replay' ? ' <span class="chip">you</span>' : ''}${pl.bot ? ' <span class="chip">Computer</span>' : ''}</span><span class="vp">${pl.vp}<small>VP</small></span>
     <span class="fs">${pl.f.map(chip).join('')}</span><span class="cnt"><span>Hand ${pl.hand.length}</span><span>Deck ${pl.deck}</span><span>Discard ${pl.disc.length}</span>${pl.ti.filter(t => !IMGU.cards[t.d]).map(t => `<span class="tinfo" title="${esc(CARDS[t.d].text)}">♛ ${esc(CARDS[t.d].name)} ${t.on ? '(in play)' : '(ready)'}</span>`).join('')}${pl.sta.map(e => `<span class="tinfo">${esc(CARDS[e.d].name)} in stasis (${e.n})</span>`).join('')}</span>${tc ? `<div class="tcards">${tc}</div>` : ''}</div>`; }).join('')}</div>
     <div class="bar"><div class="phase">${(V.uses.madness || V.uses.monsters) && !V.over ? `<span class="decks">${V.uses.madness ? `Madness deck ${V.dk.mad}` : ''}${V.uses.monsters ? ` · Monsters ${V.dk.mon} · Treasure ${V.dk.tr}` : ''}</span><br>` : ''}${V.over ? 'Game over' : `${pn(V.cur)}’s turn ${leftPills(V, tn && tn.p === me && S.mode !== 'local' || (S.mode === 'local' && tn && cover == null && tn.p === me))}`}${S.mode !== 'local' && !V.over && waitP != null && waitP !== me ? ` · <span class="btxt">waiting for ${pn(waitP)}</span>` : ''}${S.thinking != null && !V.over ? ' · <span class="btxt">thinking…</span>' : ''}</div>
-      <div class="row"><button class="btn ghost" data-act="undo" ${V.cu && !V.undo ? '' : 'disabled'}>Undo</button><button class="btn ghost" data-act="discards">Discard piles</button><button class="btn ghost" data-act="log">${S.showLog ? 'Hide log' : 'Show log'}</button>${chatBtn()}<button class="btn ghost cog" data-act="settings" aria-label="Settings and menu" title="Settings and menu"><span aria-hidden="true">⚙</span> Menu</button></div></div>${S.mode === 'async' ? asyncNote(V, me, waitP) : ''}`;
+      <div class="row">${S.mode === 'replay' ? '' : `<button class="btn ghost" data-act="undo" ${V.cu && !V.undo ? '' : 'disabled'}>Undo</button>`}<button class="btn ghost" data-act="discards">Discard piles</button><button class="btn ghost" data-act="log">${S.showLog ? 'Hide log' : 'Show log'}</button>${chatBtn()}${S.mode === 'replay' ? '' : '<button class="btn ghost cog" data-act="settings" aria-label="Settings and menu" title="Settings and menu"><span aria-hidden="true">⚙</span> Menu</button>'}</div></div>${S.mode === 'async' ? asyncNote(V, me, waitP) + asyncRecapPanel(V, me) : ''}`;
   h += `<div class="gl">${renderTray(V)}${renderLastTray(V)}<div class="gm">`;
   h += renderBoard(prm && prm.p === me ? prm : null, cover);
   if (S.showLog) h += `<div class="sect"><h2>Table log</h2></div><ul class="log">${V.log.slice().reverse().map(logItem).join('')}</ul>`;
@@ -11788,8 +11901,8 @@ function renderLayer() {
       <div class="opts">${local ? u.need.filter(s => !u.yes.includes(s)).map(s => `<button class="btn primary" data-act="vote" data-s="${s}" data-y="1">${pn(s)} agrees</button>`).join('')
         : (u.need.includes(me) && !u.yes.includes(me) ? '<button class="btn primary" data-act="vote" data-y="1">Agree</button>' : '<span class="btxt">Waiting for the others…</span>')}
         <button class="btn" data-act="vote" data-y="0" ${local ? 'data-s="' + u.need[0] + '"' : ''}>${u.need.includes(me) || local ? 'Decline' : 'Cancel'}</button></div></div></div>`; }
-  else if (S.mode === 'local' && S.cover != null) h += `<div class="overlay"><div class="panel"><div class="label">Pass the device</div><h2>${pn(S.cover)}, you’re up</h2><p class="btxt" style="margin:0">Everyone else look away. Your hand is shown once you tap the button.</p><button class="btn primary" data-act="seat" data-p="${S.cover}">I’m ${pn(S.cover)}</button></div></div>`;
-  else if (V.over) h += `<div class="overlay"><div class="panel"><div class="label">Final scores</div><h2>${V.wins.length > 1 ? V.wins.map(pn).join(' and ') + ' share the win' : pn(V.win) + ' wins'}</h2><ul class="dlist">${V.players.map((p, i) => ({ p, i })).sort((a, b) => (V.adj ? V.adj[b.i] - V.adj[a.i] : b.p.vp - a.p.vp)).map(({ p, i }) => `<li><span>${esc(p.name)}</span><b class="mono">${V.uses.madness && V.mdn ? `${p.vp} VP − ${Math.floor(V.mdn[i] / 2)} for ${V.mdn[i]} Madness = ${V.adj[i]}` : p.vp + ' VP'}</b></li>`).join('')}</ul><div class="row"><button class="btn primary" data-act="${S.mode === 'local' ? 'quit' : 'leave'}">${S.mode === 'local' ? 'Play again' : S.mode === 'async' ? 'Back to my games' : 'Leave room'}</button></div></div></div>`;
+  else if (S.mode === 'local' && S.cover != null) h += `<div class="overlay"><div class="panel"><div class="label">Pass the device</div><h2>${pn(S.cover)}, you’re up</h2><p class="btxt" style="margin:0">Everyone else look away. Your hand is shown once you tap the button.</p><button class="btn primary" data-act="seat" data-p="${S.cover}">I’m ${pn(S.cover)}</button>${(() => { const R = recapFor(S.cover); return R ? `<details class="awaydet"><summary>What happened since your last turn</summary>${recapHtml(R, 40)}</details>` : ''; })()}</div></div>`;
+  else if (V.over && S.mode !== 'replay') h += `<div class="overlay"><div class="panel"><div class="label">Final scores</div><h2>${V.wins.length > 1 ? V.wins.map(pn).join(' and ') + ' share the win' : pn(V.win) + ' wins'}</h2><ul class="dlist">${V.players.map((p, i) => ({ p, i })).sort((a, b) => (V.adj ? V.adj[b.i] - V.adj[a.i] : b.p.vp - a.p.vp)).map(({ p, i }) => `<li><span>${esc(p.name)}</span><b class="mono">${V.uses.madness && V.mdn ? `${p.vp} VP − ${Math.floor(V.mdn[i] / 2)} for ${V.mdn[i]} Madness = ${V.adj[i]}` : p.vp + ' VP'}</b></li>`).join('')}</ul><div class="row"><button class="btn primary" data-act="${S.mode === 'local' ? 'quit' : 'leave'}">${S.mode === 'local' ? 'Play again' : S.mode === 'async' ? 'Back to my games' : 'Leave room'}</button></div></div></div>`;
   else if (S.modal === 'endconfirm' && V.turn && V.turn.p === actor()) { const L = playsLeft(V), parts = [];
     if (L.m) parts.push(`<span class="left lm"><b>${V.tm[0]}</b> minion${V.tm[0] === 1 ? '' : 's'}</span>`); if (L.a) parts.push(`<span class="left la"><b>${V.tm[1]}</b> action${V.tm[1] === 1 ? '' : 's'}</span>`); if (L.held) parts.push(`<span class="left zero"><b>${L.held}</b> held extra play${L.held === 1 ? '' : 's'}</span>`);
     h += `<div class="overlay" data-act="closemodal"><div class="panel" data-stop="1"><div class="label">Reminder</div><h2>You can still play this turn</h2><p class="btxt" style="margin:0">You have ${parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts[0]} left that you could play. End your turn anyway?</p>
@@ -11820,9 +11933,10 @@ function renderLayer() {
 
 function render() {
   const keep = { x: window.scrollX, y: window.scrollY }; const ae = document.activeElement; const keepId = ae && ae.id && ae.tagName === 'INPUT' ? { id: ae.id, s: ae.selectionStart } : null;
-  if (S.screen === 'game' && S.V) { const sheet = !!(S.V.prompt && S.V.prompt.p === actor() && !(S.mode === 'local' && S.cover != null)); $app.className = 'wrap' + (sheet ? ' has-sheet' : ''); $app.innerHTML = renderGame(); $layer.innerHTML = renderLayer(); }
+  if (S.screen === 'replay') { $app.className = 'wrap'; $app.innerHTML = renderReplayBar() + (S.V ? renderGame() : '<div class="empty">Rebuilding the game…</div>'); $layer.innerHTML = S.V ? renderLayer() : ''; }
+  else if (S.screen === 'game' && S.V) { const sheet = !!(S.V.prompt && S.V.prompt.p === actor() && !(S.mode === 'local' && S.cover != null)); $app.className = 'wrap' + (sheet ? ' has-sheet' : ''); $app.innerHTML = renderGame(); $layer.innerHTML = renderLayer(); }
   else { $app.className = 'wrap'; $layer.innerHTML = S.picker ? renderPicker() : S.modal === 'account' ? renderAccount() : '';
-    $app.innerHTML = S.screen === 'draft' && S.draft ? renderDraftScreen() : S.screen === 'setup' ? renderSetup() : S.screen === 'lobby' && S.room ? renderLobby() : S.screen === 'mygames' ? renderMyGames() : S.screen === 'game' ? `<header class="hero"><h1 class="logo"><span class="a">SMASH</span><span class="b">UP</span></h1><p class="tag">Loading the game…</p></header>${errBox()}` : renderHome(); }
+    $app.innerHTML = S.screen === 'draft' && S.draft ? renderDraftScreen() : S.screen === 'setup' ? renderSetup() : S.screen === 'lobby' && S.room ? renderLobby() : S.screen === 'mygames' ? renderMyGames() : S.screen === 'history' ? renderHistory() : S.screen === 'game' ? `<header class="hero"><h1 class="logo"><span class="a">SMASH</span><span class="b">UP</span></h1><p class="tag">Loading the game…</p></header>${errBox()}` : renderHome(); }
   if (keepId) { const el = document.getElementById(keepId.id); if (el) { el.focus(); try { el.setSelectionRange(keepId.s, keepId.s); } catch (e) {} } }
   window.scrollTo(keep.x, keep.y); draftAuto(); chatSync(); nfCheck(); }
 
@@ -11831,6 +11945,7 @@ document.addEventListener('input', e => { const t = e.target, a = t.getAttribute
   if (a != null) { S.setup.players[+a].name = t.value; saveSetup(); const b = document.querySelector('[data-act=start]'); if (b) b.disabled = !S.setup.players.slice(0, S.setup.n).every(p => p.f.length === 2 && p.name.trim()); }
   const k = t.getAttribute && t.getAttribute('data-in'); if (k) { S[k] = k === 'joinCode' ? t.value.toUpperCase() : t.value; if (k === 'myName') saveName(); if (k === 'pq') render(); } });
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target && e.target.id === 'ap') { e.preventDefault(); acctGo('in'); } if (e.key === 'Enter' && e.target && e.target.id === 'chatin') { e.preventDefault(); chatSend(); } if (e.key === 'Escape' && S.chat.open && !S.modal) { S.chat.open = false; chatSync(); } });
+let rpSl = null; document.addEventListener('input', e => { if (e.target && e.target.id === 'rpslider' && S.rp) { const v = +e.target.value; clearTimeout(rpSl); rpSl = setTimeout(() => rpSeek(v), 90); } });
 document.addEventListener('change', e => { const t = e.target;
   if (t.getAttribute && t.getAttribute('data-lname') && S.room) { const nm = t.value.trim().slice(0, 18) || 'Player'; S.myName = nm; saveName(); FB.db.doc(rpath(S.room.code) + '/players/' + FB.uid).update({ name: nm }).catch(() => {}); } });
 document.addEventListener('click', e => {
@@ -11848,6 +11963,17 @@ document.addEventListener('click', e => {
     case 'aremove': { const c = el.dataset.c; if (S.my) { if (S.my.subs[c]) { try { S.my.subs[c](); } catch (e) {} delete S.my.subs[c]; } delete S.my.rows[c]; } myBadge(); render(); return void rememberGame(c, true); }
     case 'seatkey': S.modal = 'seatkey'; return render();
     case 'settings': S.modal = 'settings'; return render();
+    case 'history': S.htab = S.htab || 'matches'; return void openHistory();
+    case 'htab': S.htab = el.dataset.t; return render();
+    case 'hdel': { try { localStorage.setItem(HIST_KEY, JSON.stringify(localHist().filter(x => x.id !== el.dataset.id))); } catch (e) {} return render(); }
+    case 'replay': return void openReplay(el.dataset.id);
+    case 'rpexit': return rpExit();
+    case 'rpseek': return rpSeek(+el.dataset.to);
+    case 'rpstep': return rpSeek(S.rp.k + +el.dataset.d);
+    case 'rpturn': return rpTurn(+el.dataset.d);
+    case 'rpplay': return rpPlay();
+    case 'rpseat': S.rp.seat = +el.dataset.p; S.selCard = null; return rpShow();
+    case 'recapok': try { localStorage.setItem(recapKey(), el.dataset.end); } catch (e) {} return render();
     case 'account': S.modal = 'account'; S.acctErr = ''; if (!S.acct) acctLoad(true); return render();
     case 'acsignin': return void acctGo('in');
     case 'acsignup': return void acctGo('up');
