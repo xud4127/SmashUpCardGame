@@ -14,7 +14,7 @@ Hot-seat play (everyone on one screen, with or without computer players) works a
 ## Part 2 — Turn on online games (Firebase, free Spark plan)
 
 1. Go to <https://console.firebase.google.com> → **Add project** (name it anything, you can turn Analytics off).
-2. In the project: **Build → Authentication → Get started → Sign-in method → Anonymous → Enable → Save.**
+2. In the project: **Build → Authentication → Get started → Sign-in method → Anonymous → Enable → Save.** Then **Add new provider → Email/Password → Enable** (only the first switch) **→ Save** — this is what player accounts use.
 3. **Build → Firestore Database → Create database** → pick any location → start in **production mode**.
 4. In Firestore, open the **Rules** tab, replace everything with the contents of `firestore.rules`, and **Publish**.
 5. **Project settings (gear icon) → General → Your apps → `</>` (Web)** → register an app (skip Hosting). Copy the `firebaseConfig` values it shows.
@@ -32,6 +32,16 @@ Choose **Online → Start a game** on the home screen. Friends join from **My ga
 - **Seat key:** Firebase knows each player by their browser. To carry on from another phone or computer, tap **Seat key** in the game, then on the new device join with the game code and enter that key.
 - Everything lives under `rooms/` in Firestore, so the rules above cover it.
 - Try not to update `index.html` while a game is half-way through: a rules change can stop old games from rebuilding. The game shows a warning if it was started on a different version.
+
+## Player accounts
+
+On the home screen (or **⚙ Menu** in a game), tap **Sign in or create an account**. Accounts are a username and a password (6+ characters); no email is needed.
+
+- Signed in, **My games** follows you to any phone or computer, so seat keys aren't needed.
+- Creating an account on a device you've been playing on as a guest keeps that device's games. Signing in to an existing account on a guest device moves the guest's games into the account.
+- Guests can still play without an account.
+- **Forgotten password:** there's no email to reset it. In the Firebase console → **Authentication → Users**, delete that user (their username shows as `name@players.example.com`); they can then create the account again with the same username. Their old games stay reachable with seat keys.
+- Upload the new `firebase-shim.js` along with `index.html` — accounts live in that file.
 
 ## Good to know
 

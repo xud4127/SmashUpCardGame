@@ -1,7 +1,7 @@
 <!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<script>/* phones start in the zoomed-out "full table" layout unless the player picked the phone layout */try{if(localStorage.getItem("suView")!=="phone"&&(Math.min(screen.width,screen.height)<900||screen.width<980))document.querySelector("meta[name=viewport]").setAttribute("content","width=980")}catch(e){}</script>
+<script>/* phones start in the zoomed-out "full table" layout unless the player picked the phone layout */try{if(localStorage.getItem("suView")!=="phone"&&((matchMedia("(pointer:coarse)").matches&&Math.min(screen.width,screen.height)<900)||screen.width<980))document.querySelector("meta[name=viewport]").setAttribute("content","width=980")}catch(e){}</script>
 <title>Smash Up Table</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -240,6 +240,9 @@ details.rules li { margin: 4px 0; }
 .setrow{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid var(--line)}
 .setrow>div:first-child{display:grid;gap:3px;min-width:0;flex:1 1 220px}.setrow .seg{flex:0 0 auto}
 .btn.cog span{font-size:17px;line-height:1}
+.acct{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline;margin:2px 0 0}.linkbtn{background:none;border:0;padding:0;font:600 13px var(--body);color:var(--accent);text-decoration:underline;cursor:pointer}
+.acctp input{font:600 16px var(--body);padding:10px 12px;border-radius:9px;border:1.5px solid var(--line);background:var(--surface-2);color:var(--ink);width:100%;box-sizing:border-box}
+.setrow .spseg{display:flex;flex-wrap:wrap;flex:1 1 100%}.setrow .spseg button{flex:1 1 auto}
 .mglist{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:10px}
 .mg{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow)}
 .mg.up{border:2px solid var(--accent)}
@@ -325,7 +328,7 @@ details.rules li { margin: 4px 0; }
 </style>
 
 <div class="wrap" id="app"></div>
-<div class="ver" aria-label="Page version">Version Oct 23 03:41 UTC</div>
+<div class="ver" aria-label="Page version">Version Oct 23 04:13 UTC</div>
 <div id="layer"></div>
 <div id="chatdock"></div><div id="toast" role="status" aria-live="polite"></div>
 
@@ -681,6 +684,7 @@ function createGame(opts) {
   g.madnessDeck = []; g.monsterDeck = []; g.monsterDiscard = []; g.treasureDeck = []; g.treasureDiscard = []; g.box = [];
   g.uses = { madness: false, monsters: false, treasure: false };
   g.q = [];
+  g.spPref = [];
   g.current = 0; g.round = 0; g.over = false; g.winner = null; g.winners = null; g.sleep = {};
   g.turn = { minionsLeft: 0, actionsLeft: 0, minionsPlayed: {}, phaseMinions: 0, phase: 'setup', cardsPlayed: {}, flags: {} };
   g.refresh = () => { if (g.host.onChange) g.host.onChange(g); };
@@ -1166,6 +1170,10 @@ function createGame(opts) {
     while (passes < N && guard++ < 200) {
       const p = i % N; i++;
       const opts = optsFn(p);
+      /* each player's choice for these windows (g.spPref[p]): null = asked only when they have a Special to play, 'ask' = always asked (so nobody can tell), 'pass' = never asked */
+      const pref = g.spPref[p];
+      if (pref === 'pass') { passes++; continue; }
+      if (!opts.length && pref === 'ask') { await g.ask(p, { kind: 'options', options: [{ id: '__pass', label: 'Pass (nothing to play here)' }], prompt: 'Use a Special ability?', optional: false }); passes++; continue; }
       if (!opts.length) { passes++; continue; }
       const id = await g.pickOption(p, opts.map(o => ({ id: o.id, label: o.label })).concat([{ id: '__pass', label: 'Pass' }]), 'Use a Special ability?', { optional: false });
       if (!id || id === '__pass') { passes++; continue; }
@@ -10846,12 +10854,14 @@ function create(g, env) {
     return new Promise(resolve => {
       let i = 0, g2, ai2, t0 = null, steps = 0, fin = false; const never = () => new Promise(() => {});
       const finish = v => { if (!fin) { fin = true; resolve(v); } };
+      /* a player's base-scoring Specials setting changed here: apply it, it is not an answer */
+      const skipSets = () => { while (i < snap.log.length && snap.log[i].k === 'set') { const e = snap.log[i++]; if (g2) g2.spPref[e.p] = (e.v && e.v.sp) || null; } };
       const host = { onLog() {}, onChange() {},
-        ask(gg, p, spec) { if (fin) return never(); const pe2 = { kind: 'prompt', p, spec };
+        ask(gg, p, spec) { if (fin) return never(); const pe2 = { kind: 'prompt', p, spec }; skipSets();
           if (i < snap.log.length) { const e = snap.log[i++], n = toNative(g2, pe2, e.v); if (!n.ok || e.p !== p || e.k !== 'prompt') { finish(null); return never(); } return Promise.resolve(n.r); }
           if (t0 === null || ++steps > 500) { finish(null); return never(); }
           const n = toNative(g2, pe2, ai2.act(pe2, 'hard')); return Promise.resolve(n.ok ? n.r : null); },
-        chooseTurnAction(gg, p, info) { if (fin) return never(); const pe2 = { kind: 'turn', p, info };
+        chooseTurnAction(gg, p, info) { if (fin) return never(); const pe2 = { kind: 'turn', p, info }; skipSets();
           if (i < snap.log.length) { const e = snap.log[i++], n = toNative(g2, pe2, e.v); if (!n.ok || e.p !== p || e.k !== 'turn') { finish(null); return never(); } return Promise.resolve(n.r); }
           if (t0 === null) { if (p !== who) { finish(null); return never(); } determinize(g2, who, k + 1); t0 = g2.turn;
             if (cand.baseIdx != null && cand.c) ai2.hint(cand.c.uid, g2.bases[cand.baseIdx]);
@@ -11035,7 +11045,8 @@ const host = {
 const botLvl = p => (S.bots && S.bots[p]) ? 'expert' : null;
 function aiMaybe(pe) { const lvl = botLvl(pe.p);
   if (S.mode === 'async' && S.A) { const A0 = S.A; if (A0.verify && S.log.length === A0.verify.n) { if (stateChk(S.g) !== A0.verify.chk) { A0.mismatch = true; console.warn('async: board check differs from the saved game'); } A0.verify = null; }
-    if (!lvl) { const A = S.A; if (A.driver && !A.dirty && !A.writing) asyncSummary(); return; } if (!S.A.driver) { asyncBotWatch(); return; } }
+    if (!lvl) { const A = S.A; if (S.seats && S.seats[pe.p] === FB.uid) { let dp; try { dp = localStorage.getItem('suSpecials'); } catch (e) {} if (dp != null) { const want = dp === 'ask' || dp === 'pass' ? dp : null; if ((S.g.spPref[pe.p] || null) !== want) setTimeout(() => { if (S.pend === pe) setSp(pe.p, want); }, 0); } }
+      if (A.driver && !A.dirty && !A.writing) asyncSummary(); return; } if (!S.A.driver) { asyncBotWatch(); return; } }
   if (!lvl) return;
   setTimeout(async function tick() { if (S.pend !== pe || !S.g) return; if (S.undoReq) { setTimeout(tick, 500); return; } let v;
     if (lvl === 'expert' && pe.kind === 'turn') { S.thinking = pe.p; render(); }
@@ -11048,7 +11059,7 @@ function buildView() {
   const g = S.g, pe = S.pend;
   const V = { seq: pe ? pe.seq : 0, cur: g.current, tm: [g.turn.minionsLeft, g.turn.actionsLeft], over: !!g.over, win: g.winner, log: g.logs.slice(-60), seats: S.seats, prompt: null, turn: null, cu: S.mode === 'async' ? asyncCanUndo() : (!g.over && S.log.some(e => e.h)), undo: S.undoReq ? { by: S.undoReq.by, yes: S.undoReq.yes, need: S.undoReq.need, label: S.undoReq.label } : null,
     players: g.players.map(pl => ({ name: pl.name, f: pl.factions, vp: pl.vp, deck: pl.deck.length, hand: pl.hand.map(cr), disc: pl.discard.map(c => c.def.id), na: !!(g.sleep[pl.idx] && g.sleep[pl.idx].noActions), bot: botLvl(pl.idx), ti: pl.titans.map(t => ({ uid: t.uid, d: t.def.id, on: !!t.base })), sta: pl.stasis.map(e => ({ d: e.card.def.id, n: e.counters })) })),
-    pt: g.feed ? g.feed().slice() : (g.turn.played || []).map(e => ({ uid: e.uid, d: e.d, p: e.p, tg: e.tg })), lt: g.prevTurn || null, dk: { mad: g.madnessDeck.length, mon: g.monsterDeck.length, tr: g.treasureDeck.length }, uses: g.uses, adj: g.adjusted || null, mdn: g.madness || null, wins: g.winners || (g.winner != null ? [g.winner] : []),
+    sp: (g.spPref || []).slice(), pt: g.feed ? g.feed().slice() : (g.turn.played || []).map(e => ({ uid: e.uid, d: e.d, p: e.p, tg: e.tg })), lt: g.prevTurn || null, dk: { mad: g.madnessDeck.length, mon: g.monsterDeck.length, tr: g.treasureDeck.length }, uses: g.uses, adj: g.adjusted || null, mdn: g.madness || null, wins: g.winners || (g.winner != null ? [g.winner] : []),
     bases: g.bases.map(b => ({ uid: b.uid, d: b.def.id, pw: g.basePower(b), bp: g.breakpoint(b), on: g.baseActive(b),
       ti: b.titans.map(t => ({ uid: t.uid, d: t.def.id, c: t.controller, pw: t.counters || 0 })), bu: b.buried.length, sc: (b.stored || []).length,
       mn: b.minions.map(m => ({ uid: m.uid, d: m.def.id, c: m.controller, pw: g.powerOf(m), cn: m.counters || 0, sc: (m.stored || []).length, st: !!m.stego, at: m.attached.map(a => ({ uid: a.uid, d: a.def.id, c: a.controller })) })),
@@ -11091,9 +11102,18 @@ async function send(v) {
   else applyAnswer({ seq, v }, S.mode === 'host' || S.mode === 'async' ? FB.uid : undefined); }
 
 /* builds a game and fast-forwards it through the recorded answers; the first unrecorded question goes to the live players */
+/* base-scoring Specials: each player chooses to be asked only when they have one (default), always asked, or never asked.
+   A change is kept in the move list as a { k: 'set' } entry, so every device rebuilding the game asks the same questions. */
+const SP_OPTS = [[null, 'Only when I have one'], ['ask', 'Always ask me'], ['pass', 'Never (auto-pass)']];
+function applySet(g, e) { if (g && e && e.k === 'set' && g.spPref) g.spPref[e.p] = (e.v && e.v.sp) || null; }
+function canSetSp(me) { if (!S.g || S.g.over || me == null || me < 0 || !S.pend || S.replaying) return false;
+  if (S.mode === 'local') return !botLvl(me); if (S.mode === 'async') return !!S.A && S.A.booted && !S.A.feeding && S.pend.p === me; return false; }
+function setSp(me, sp) { if (!canSetSp(me)) return false; const g = S.g; if ((g.spPref[me] || null) === (sp || null)) return true;
+  const e = { p: me, k: 'set', v: { sp: sp || null }, h: false, label: g.players[me].name + ' changed their Specials setting' };
+  S.log.push(e); applySet(g, e); if (S.mode === 'async') asyncSave(true); pushView(); return true; }
 function makeGame(log) {
   let i = 0, g;
-  const step = (pe, live) => { if (i >= log.length) { S.replaying = false; return live(); }
+  const step = (pe, live) => { while (i < log.length && log[i].k === 'set') applySet(g, log[i++]); if (i >= log.length) { S.replaying = false; return live(); }
     const e = log[i++], n = AI.toNative(g, pe, e.v); if (!n.ok || e.p !== pe.p || e.k !== pe.kind) throw new Error('Could not rewind the game.'); return Promise.resolve(n.r); };
   const rh = { onChange() { host.onChange(); },
     ask(gg, p, spec) { return step({ kind: 'prompt', p, spec }, () => host.ask(gg, p, spec)); },
@@ -11191,7 +11211,7 @@ async function sendDraftPick(f) { const R = S.room; if (!R) return; if (R.async)
 /* ---------- turn alerts (online rooms) ---------- */
 /* ---------- layout on phones: "full table" (the whole desktop table, zoomed out to fit) or "phone" (stacked, bigger text) ---------- */
 const VIEW = { meta: document.querySelector('meta[name="viewport"]'), top: (() => { try { return window.top === window; } catch (e) { return false; } })() };
-const viewSmall = () => Math.min(screen.width || 9999, screen.height || 9999) < 900 || (screen.width || 9999) < 980;
+const viewSmall = () => { const sw = screen.width || 9999, sh = screen.height || 9999; let coarse = false; try { coarse = matchMedia('(pointer: coarse)').matches; } catch (e) {} return (coarse && Math.min(sw, sh) < 900) || sw < 980; };
 function viewMode() { try { const v = localStorage.getItem('suView'); if (v === 'table' || v === 'phone') return v; } catch (e) {} return VIEW.meta && VIEW.top ? 'table' : 'phone'; }
 function applyView() { const table = viewMode() === 'table' && viewSmall();
   if (VIEW.meta && VIEW.top) { const want = table ? 'width=980' : 'width=device-width, initial-scale=1, viewport-fit=cover'; if (VIEW.meta.getAttribute('content') !== want) VIEW.meta.setAttribute('content', want); document.documentElement.style.zoom = ''; }
@@ -11321,7 +11341,7 @@ function setBots(bots) { S.room.bots = bots; render(); FB.db.doc(rpath(S.room.co
    The game is the room's setup (players, seed) plus a shared list of every answer. Every browser rebuilds the game from that list,
    so nobody has to keep a tab open: whoever the game is waiting on opens it, answers, and the new answers are saved for the next person.
    Storage: rooms/<code>/state/head {rev, n, tag, t, fp[]} and rooms/<code>/state/c000, c001, … {m: [answers]} (CH answers per chunk). */
-const RULES_VER = 'c79d7b41e0';
+const RULES_VER = '568917b919';
 const CH = 200;
 const ahash = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(16); };
 const sameE = (a, b) => a && b && a.p === b.p && a.k === b.k && JSON.stringify(a.v === undefined ? null : a.v) === JSON.stringify(b.v === undefined ? null : b.v);
@@ -11371,12 +11391,13 @@ function asyncRebuild(R) { S.log = R.slice(); S.pend = null; S.selCard = null; S
 /* feed answers that arrived from the database to the question the game is waiting on */
 function asyncFeed(pe) {
   const A = S.A; if (S.mode !== 'async' || !A) return false;
+  while (A.inq.length && A.inq[0].k === 'set') { const s = A.inq.shift(); S.log.push(s); applySet(S.g, s); }
   if (!A.inq.length) { if (A.feeding) { A.feeding = false; S.replaying = false; } return false; }
   const e = A.inq.shift(); const n = AI.toNative(S.g, pe, e.v);
   if (!n.ok || e.p !== pe.p || e.k !== pe.kind) { const R = A.remote.slice(); setTimeout(() => asyncRebuild(R), 0); return true; }
   S.log.push(e); S.pend = null; pe.res(n.r); return true; }
 function asyncFeedPending() { const A = S.A, pe = S.pend; if (!A || !A.inq.length) return; if (!pe) return;   // the engine asks next; host.ask feeds it
-  A.feeding = true; S.replaying = true; asyncFeed(pe); }
+  A.feeding = true; S.replaying = true; if (!asyncFeed(pe)) pushView(); }
 /* save: coalesce a run of computer-player answers, save at once when a person is up */
 function asyncSave(now) { const A = S.A; if (!A) return; if (!A.dirty) A.dirtyAt = Date.now(); A.dirty = true; if (now) A.humanDirty = true; clearTimeout(A.ft); A.ft = setTimeout(asyncTick, now ? 0 : 300); }
 function asyncTick() { const A = S.A; if (!A || !A.dirty) return; if (!S.pend && !(S.g && S.g.over) && Date.now() - A.dirtyAt < 1500) { A.ft = setTimeout(asyncTick, 60); return; } if (A.humanDirty) return void asyncFlush(); const botUp = S.pend && botLvl(S.pend.p) && !(S.g && S.g.over);
@@ -11449,6 +11470,7 @@ function renderMyGames() {
     <div class="row" style="margin:14px 0"><button class="btn primary" data-act="acreate" ${S.busy ? 'disabled' : ''}>Start a new game</button>
       <input type="text" id="acode" value="${esc(S.joinCode)}" maxlength="4" placeholder="CODE" aria-label="Game code" data-in="joinCode" style="width:7.5em;text-transform:uppercase;font:600 16px var(--mono);letter-spacing:.2em;padding:10px 12px;border-radius:9px;border:1.5px solid var(--line);background:var(--surface-2);color:var(--ink)">
       <button class="btn" data-act="join" ${S.busy ? 'disabled' : ''}>Join with a code</button><button class="btn ghost" data-act="notify" aria-pressed="${NF.on}" title="Chime and notify while this page is open when a game starts waiting on you">${NF.on ? 'Alerts: on' : 'Alert me'}</button><button class="btn ghost" data-act="home">Back</button></div>`;
+  h += acctLine();
   if (!M.loaded) h += `<div class="empty">Loading your games…</div>`;
   else if (!rows.length) h += `<div class="empty">No games yet. Start one and send the code to your friends.</div>`;
   else h += `<ul class="mglist">${rows.map(r => { const d = r.d, nm = names(d);
@@ -11481,6 +11503,49 @@ function asyncNote(V, me, waitP) { const A = S.A; if (!A) return ''; let t = '';
   return t; }
 function botDraftFill(D) { while (!draftDone(D) && String(draftCur(D)).startsWith('bot:')) { const left = D.pool.filter(f => !D.picks.some(p => p.f === f)); D.picks.push({ k: draftCur(D), f: left[Math.floor(Math.random() * left.length)] }); } }
 
+/* ---------- player accounts (GitHub site: username + password through the Firebase shim; the Claude page already knows who you are) ---------- */
+const ACC = () => (typeof window !== 'undefined' && window.suAuth) || null;
+S.acct = null; S.au = ''; S.ap = ''; S.acctErr = '';
+async function acctLoad(quiet) { const A = ACC(); if (!A) return; try { S.acct = await A.state(); } catch (e) { if (!quiet) S.acctErr = 'Could not reach the online service.'; } render(); }
+function acctLine() { if (!ACC()) return ''; const a = S.acct, signed = a && !a.guest;
+  return `<div class="acct btxt">${signed ? `Signed in as <b>${esc(a.username)}</b>.` : 'Playing as a guest on this device.'} <button class="linkbtn" data-act="account">${signed ? 'Account' : 'Sign in or create an account'}</button></div>`; }
+function acctMsg(e) { const c = (e && e.code) || '';
+  if (/email-already-in-use|credential-already-in-use/.test(c)) return 'That username is already taken.';
+  if (/wrong-password|invalid-credential|user-not-found|invalid-login/.test(c)) return 'Wrong username or password.';
+  if (/weak-password/.test(c)) return 'The password needs at least 6 characters.';
+  if (/operation-not-allowed/.test(c)) return 'Accounts are not switched on yet: in the Firebase console, turn on Email/Password sign-in (see README).';
+  if (/too-many-requests/.test(c)) return 'Too many tries. Wait a minute and try again.';
+  if (/network/.test(c)) return 'No connection. Check your internet and try again.';
+  return 'That didn’t work: ' + ((e && e.message) || e); }
+/* signing in to an existing account from a device that played as a guest: move that guest's games to the account */
+async function acctMerge(prevUid, newUid) { const db = FB.db; if (!db || !prevUid || prevUid === newUid) return;
+  const idx = uid => 'rooms/U-' + String(uid).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120);
+  const old = await db.doc(idx(prevUid)).get(); const games = old.exists ? Object.assign({}, old.data().games || {}) : {}; if (!Object.keys(games).length) return;
+  const cur = await db.doc(idx(newUid)).get(); await db.doc(idx(newUid)).set({ games: Object.assign({}, games, cur.exists ? cur.data().games || {} : {}) });
+  for (const code of Object.keys(games)) { try { const r = await db.doc(rpath(code)).get(); if (!r.exists) continue; const d = r.data(), up = {};
+    if (Array.isArray(d.seats) && d.seats.includes(prevUid)) up.seats = d.seats.map(x => x === prevUid ? newUid : x); if (d.host === prevUid) up.host = newUid;
+    if (Object.keys(up).length) await db.doc(rpath(code)).update(up);
+    const pd = await db.doc(rpath(code) + '/players/' + prevUid).get(); if (pd.exists) { await db.doc(rpath(code) + '/players/' + newUid).set(pd.data()); await db.doc(rpath(code) + '/players/' + prevUid).delete(); } } catch (e) {} } }
+async function acctGo(kind) { const A = ACC(); if (!A || S.busy) return; const u = String(S.au || '').trim(), pw = String(S.ap || '');
+  if (kind !== 'out') { if (!/^[A-Za-z0-9_.-]{3,20}$/.test(u)) { S.acctErr = 'Usernames are 3–20 letters, numbers, dots, dashes or underscores.'; return render(); } if (pw.length < 6) { S.acctErr = 'The password needs at least 6 characters.'; return render(); } }
+  S.busy = true; S.acctErr = ''; render();
+  try { await initOnline();
+    if (kind === 'out') { await A.signOut(); try { localStorage.removeItem('suAcct'); } catch (e) {} }
+    else { const r = kind === 'up' ? await A.signUp(u, pw) : await A.signIn(u, pw); if (r.prevUid) await acctMerge(r.prevUid, r.uid);
+      try { localStorage.setItem('suAcct', '1'); localStorage.setItem('suAsync', '1'); } catch (e) {} if (!S.myName || /^Player/.test(S.myName)) { S.myName = u; saveName(); } }
+    S.ap = ''; location.reload(); }
+  catch (e) { S.busy = false; S.acctErr = acctMsg(e); render(); } }
+function renderAccount() { const a = S.acct, signed = a && !a.guest;
+  const inp = (id, k, type, ph, ac) => `<input type="${type}" id="${id}" value="${esc(S[k] || '')}" data-in="${k}" placeholder="${ph}" aria-label="${ph}" autocomplete="${ac}" autocapitalize="none" spellcheck="false" maxlength="${type === 'password' ? 64 : 20}">`;
+  return `<div class="overlay" data-act="closemodal"><div class="panel acctp" data-stop="1"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Account</h2><button class="btn ghost" data-act="closemodal">Close</button></div>
+    ${signed ? `<p class="btxt" style="margin:0">Signed in as <b>${esc(a.username)}</b>. Your games in My games follow you to any phone or computer where you sign in.</p><div class="row"><button class="btn" data-act="acsignout" ${S.busy ? 'disabled' : ''}>Sign out</button></div><p class="btxt" style="margin:0">After signing out, this device plays as a new guest until you sign in again.</p>`
+    : `<p class="btxt" style="margin:0">With an account, My games follows you to any phone or computer, so you won’t need seat keys. Creating one here keeps the games already on this device. Guests can keep playing without one.</p>
+      ${inp('au', 'au', 'text', 'Username', 'username')}${inp('ap', 'ap', 'password', 'Password (6+ characters)', 'current-password')}
+      ${S.acctErr ? `<div class="btxt" role="alert" style="color:var(--bad);font-weight:600">${esc(S.acctErr)}</div>` : ''}
+      <div class="row"><button class="btn primary" data-act="acsignin" ${S.busy ? 'disabled' : ''}>Sign in</button><button class="btn" data-act="acsignup" ${S.busy ? 'disabled' : ''}>Create account</button></div>`}
+  </div></div>`; }
+try { if (ACC() && (localStorage.getItem('suAcct') === '1' || localStorage.getItem('suAsync') === '1')) setTimeout(() => acctLoad(true), 300); } catch (e) {}
+
 /* ---------- view helpers ---------- */
 const V_ = () => S.V;
 const pn = i => i == null ? 'nobody' : esc(S.V.players[i] ? S.V.players[i].name : '?');
@@ -11508,7 +11573,7 @@ function renderHome() {
       <section class="pcard"><h3 class="h3">Hot-seat</h3><p class="btxt" style="margin:0">One shared screen. Hands are hidden behind a pass-the-device screen between turns.</p><div><button class="btn primary" data-act="goLocal">Play on this device</button></div></section>
       <section class="pcard"><h3 class="h3">Online${S.myBadge ? ` <span class="chip yt">${S.myBadge} waiting on you</span>` : ''}</h3><p class="btxt" style="margin:0">Each player on their own device, at their own pace. Every player moves whenever they’re free; the game waits for whoever is up, and nobody has to stay online.</p>
         <input type="text" id="oname" value="${esc(S.myName)}" maxlength="18" placeholder="Your name" aria-label="Your name" data-in="myName">
-        <div class="row"><button class="btn primary" data-act="mygames">My games</button><button class="btn" data-act="acreate" ${S.busy ? 'disabled' : ''}>Start a game</button></div></section></div>
+        <div class="row"><button class="btn primary" data-act="mygames">My games</button><button class="btn" data-act="acreate" ${S.busy ? 'disabled' : ''}>Start a game</button></div>${acctLine()}</section></div>
     ${viewSmall() ? `<div class="row" style="margin:12px 0">${viewBtn()}<span class="btxt">Full table shows the whole board zoomed out; phone stacks it with bigger text.</span></div>` : ''}
     <details class="rules"><summary>Rules at a glance</summary><ul>
       <li>Each turn: play one minion and one action (any order), use talents, then bases at their breakpoint score, you draw 2, and play passes left.</li>
@@ -11729,13 +11794,17 @@ function renderLayer() {
     if (L.m) parts.push(`<span class="left lm"><b>${V.tm[0]}</b> minion${V.tm[0] === 1 ? '' : 's'}</span>`); if (L.a) parts.push(`<span class="left la"><b>${V.tm[1]}</b> action${V.tm[1] === 1 ? '' : 's'}</span>`); if (L.held) parts.push(`<span class="left zero"><b>${L.held}</b> held extra play${L.held === 1 ? '' : 's'}</span>`);
     h += `<div class="overlay" data-act="closemodal"><div class="panel" data-stop="1"><div class="label">Reminder</div><h2>You can still play this turn</h2><p class="btxt" style="margin:0">You have ${parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts[0]} left that you could play. End your turn anyway?</p>
       <div class="row"><button class="btn primary" data-act="closemodal">Keep playing</button><button class="btn" data-act="endyes">End my turn</button></div><p class="btxt" style="margin:0">Turn these reminders off with the “Reminders” button above the board.</p></div></div>`; }
+  else if (S.modal === 'account') h += renderAccount();
   else if (S.modal === 'settings') { const me = actor(), seg = (act, val, cur, label) => `<button data-act="${act}" data-v="${val}" aria-pressed="${cur}">${label}</button>`;
     const key = S.mode === 'async' && S.A && me >= 0 ? (S.A.keys[me] || '') : '';
     h += `<div class="overlay" data-act="closemodal"><div class="panel setp" data-stop="1"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Menu</h2><button class="btn ghost" data-act="closemodal">Close</button></div>
       <div class="setrow"><div><b>Reminders</b><span class="btxt">Ask before I end a turn with minion or action plays left.</span></div><div class="seg">${seg('setremind', '1', S.remind, 'On')}${seg('setremind', '0', !S.remind, 'Off')}</div></div>
+      ${me >= 0 && (S.mode === 'local' || S.mode === 'async') && V.sp ? (() => { const cur = V.sp[me] || null, ok = canSetSp(me);
+        return `<div class="setrow"><div><b>Specials when a base scores${S.mode === 'local' ? ` (${pn(me)})` : ''}</b><span class="btxt">Ask me: only when I have one, every time (so nobody can tell), or never. ${ok ? '' : S.mode === 'async' ? 'You can change this when the game is waiting on you.' : ''}</span></div><div class="seg spseg">${SP_OPTS.map(([v, l]) => `<button data-act="setsp" data-v="${v || ''}" aria-pressed="${cur === v}" ${ok ? '' : 'disabled'}>${l}</button>`).join('')}</div></div>`; })() : ''}
       ${S.room && S.mode !== 'local' ? `<div class="setrow"><div><b>Turn alerts</b><span class="btxt">A chime and a notification when it’s your turn, while this page is open.</span></div><div class="seg">${seg('setnotify', '1', NF.on, 'On')}${seg('setnotify', '0', !NF.on, 'Off')}</div></div>` : ''}
       ${viewSmall() ? `<div class="setrow"><div><b>Layout</b><span class="btxt">Full table shows the whole board zoomed out; phone stacks it with bigger text.</span></div><div class="seg">${seg('setview', 'table', viewMode() === 'table', 'Full table')}${seg('setview', 'phone', viewMode() === 'phone', 'Phone')}</div></div>` : ''}
       ${key ? `<div class="setrow"><div><b>Seat key <span class="mono" style="letter-spacing:.15em">${esc(key)}</span></b><span class="btxt">To carry on from another phone or computer, open My games there, join with code <b class="mono">${esc(S.A.code)}</b> and enter this key.</span></div></div>` : ''}
+      ${ACC() ? `<div class="setrow"><div><b>Account</b><span class="btxt">${S.acct && !S.acct.guest ? 'Signed in as ' + esc(S.acct.username) + '.' : 'Playing as a guest on this device.'}</span></div><button class="btn" data-act="account">${S.acct && !S.acct.guest ? 'Account' : 'Sign in'}</button></div>` : ''}
       <div class="setrow"><div><b>${S.mode === 'local' ? 'Leave this game' : S.mode === 'async' ? 'Back to My games' : 'Leave the room'}</b><span class="btxt">${S.mode === 'local' ? 'Ends this hot-seat game and goes back to setup.' : S.mode === 'async' ? 'The game is saved; it waits here until you come back.' : 'Leaves the room.'}</span></div><button class="btn" data-act="${S.mode === 'local' ? 'quit' : 'leave'}">${S.mode === 'local' ? 'New game' : S.mode === 'async' ? 'My games' : 'Leave'}</button></div>
     </div></div>`; }
   else if (S.modal === 'seatkey' && S.A) { const me = actor(), k = S.A.keys[me] || '—';
@@ -11752,7 +11821,7 @@ function renderLayer() {
 function render() {
   const keep = { x: window.scrollX, y: window.scrollY }; const ae = document.activeElement; const keepId = ae && ae.id && ae.tagName === 'INPUT' ? { id: ae.id, s: ae.selectionStart } : null;
   if (S.screen === 'game' && S.V) { const sheet = !!(S.V.prompt && S.V.prompt.p === actor() && !(S.mode === 'local' && S.cover != null)); $app.className = 'wrap' + (sheet ? ' has-sheet' : ''); $app.innerHTML = renderGame(); $layer.innerHTML = renderLayer(); }
-  else { $app.className = 'wrap'; $layer.innerHTML = S.picker ? renderPicker() : '';
+  else { $app.className = 'wrap'; $layer.innerHTML = S.picker ? renderPicker() : S.modal === 'account' ? renderAccount() : '';
     $app.innerHTML = S.screen === 'draft' && S.draft ? renderDraftScreen() : S.screen === 'setup' ? renderSetup() : S.screen === 'lobby' && S.room ? renderLobby() : S.screen === 'mygames' ? renderMyGames() : S.screen === 'game' ? `<header class="hero"><h1 class="logo"><span class="a">SMASH</span><span class="b">UP</span></h1><p class="tag">Loading the game…</p></header>${errBox()}` : renderHome(); }
   if (keepId) { const el = document.getElementById(keepId.id); if (el) { el.focus(); try { el.setSelectionRange(keepId.s, keepId.s); } catch (e) {} } }
   window.scrollTo(keep.x, keep.y); draftAuto(); chatSync(); nfCheck(); }
@@ -11761,7 +11830,7 @@ function render() {
 document.addEventListener('input', e => { const t = e.target, a = t.getAttribute && t.getAttribute('data-pn');
   if (a != null) { S.setup.players[+a].name = t.value; saveSetup(); const b = document.querySelector('[data-act=start]'); if (b) b.disabled = !S.setup.players.slice(0, S.setup.n).every(p => p.f.length === 2 && p.name.trim()); }
   const k = t.getAttribute && t.getAttribute('data-in'); if (k) { S[k] = k === 'joinCode' ? t.value.toUpperCase() : t.value; if (k === 'myName') saveName(); if (k === 'pq') render(); } });
-document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target && e.target.id === 'chatin') { e.preventDefault(); chatSend(); } if (e.key === 'Escape' && S.chat.open && !S.modal) { S.chat.open = false; chatSync(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target && e.target.id === 'ap') { e.preventDefault(); acctGo('in'); } if (e.key === 'Enter' && e.target && e.target.id === 'chatin') { e.preventDefault(); chatSend(); } if (e.key === 'Escape' && S.chat.open && !S.modal) { S.chat.open = false; chatSync(); } });
 document.addEventListener('change', e => { const t = e.target;
   if (t.getAttribute && t.getAttribute('data-lname') && S.room) { const nm = t.value.trim().slice(0, 18) || 'Player'; S.myName = nm; saveName(); FB.db.doc(rpath(S.room.code) + '/players/' + FB.uid).update({ name: nm }).catch(() => {}); } });
 document.addEventListener('click', e => {
@@ -11778,6 +11847,11 @@ document.addEventListener('click', e => {
     case 'aremove': { const c = el.dataset.c; if (S.my) { if (S.my.subs[c]) { try { S.my.subs[c](); } catch (e) {} delete S.my.subs[c]; } delete S.my.rows[c]; } myBadge(); render(); return void rememberGame(c, true); }
     case 'seatkey': S.modal = 'seatkey'; return render();
     case 'settings': S.modal = 'settings'; return render();
+    case 'account': S.modal = 'account'; S.acctErr = ''; if (!S.acct) acctLoad(true); return render();
+    case 'acsignin': return void acctGo('in');
+    case 'acsignup': return void acctGo('up');
+    case 'acsignout': return void acctGo('out');
+    case 'setsp': { const v = el.dataset.v || null, me = actor(); if (setSp(me, v) && S.mode === 'async') { try { localStorage.setItem('suSpecials', v || 'auto'); } catch (e) {} } return render(); }
     case 'setremind': { const on = el.dataset.v === '1'; if (on !== S.remind) { S.remind = on; try { localStorage.setItem('suRemind', on ? '1' : '0'); } catch (e) {} } return render(); }
     case 'setnotify': { const on = el.dataset.v === '1'; if (on !== NF.on) return void nfToggle(); return; }
     case 'setview': { const v = el.dataset.v; if (v !== viewMode()) { try { localStorage.setItem('suView', v); } catch (e) {} applyView(); } return render(); }
