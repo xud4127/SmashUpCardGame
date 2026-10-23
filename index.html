@@ -1,6 +1,7 @@
 <!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>/* phones start in the zoomed-out "full table" layout unless the player picked the phone layout */try{if(localStorage.getItem("suView")!=="phone"&&(Math.min(screen.width,screen.height)<900||screen.width<980))document.querySelector("meta[name=viewport]").setAttribute("content","width=980")}catch(e){}</script>
 <title>Smash Up Table</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -235,6 +236,10 @@ details.rules li { margin: 4px 0; }
 .hand .card.dragging{opacity:.3}
 .hand .card.drop-before{box-shadow:-5px 0 0 0 var(--hl)}.hand .card.drop-after{box-shadow:5px 0 0 0 var(--hl)}
 .dragghost{position:fixed;z-index:90;pointer-events:none;transform:rotate(-3deg) scale(1.04);box-shadow:0 12px 30px rgba(0,0,0,.35);opacity:.95;margin:0}
+.setp{max-width:540px;gap:0}.setp>.row:first-child{margin-bottom:6px}
+.setrow{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid var(--line)}
+.setrow>div:first-child{display:grid;gap:3px;min-width:0;flex:1 1 220px}.setrow .seg{flex:0 0 auto}
+.btn.cog span{font-size:17px;line-height:1}
 .mglist{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:10px}
 .mg{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow)}
 .mg.up{border:2px solid var(--accent)}
@@ -320,7 +325,7 @@ details.rules li { margin: 4px 0; }
 </style>
 
 <div class="wrap" id="app"></div>
-<div class="ver" aria-label="Page version">Version Oct 23 03:11 UTC</div>
+<div class="ver" aria-label="Page version">Version Oct 23 03:41 UTC</div>
 <div id="layer"></div>
 <div id="chatdock"></div><div id="toast" role="status" aria-live="polite"></div>
 
@@ -11184,6 +11189,16 @@ async function sendDraftPick(f) { const R = S.room; if (!R) return; if (R.async)
 
 
 /* ---------- turn alerts (online rooms) ---------- */
+/* ---------- layout on phones: "full table" (the whole desktop table, zoomed out to fit) or "phone" (stacked, bigger text) ---------- */
+const VIEW = { meta: document.querySelector('meta[name="viewport"]'), top: (() => { try { return window.top === window; } catch (e) { return false; } })() };
+const viewSmall = () => Math.min(screen.width || 9999, screen.height || 9999) < 900 || (screen.width || 9999) < 980;
+function viewMode() { try { const v = localStorage.getItem('suView'); if (v === 'table' || v === 'phone') return v; } catch (e) {} return VIEW.meta && VIEW.top ? 'table' : 'phone'; }
+function applyView() { const table = viewMode() === 'table' && viewSmall();
+  if (VIEW.meta && VIEW.top) { const want = table ? 'width=980' : 'width=device-width, initial-scale=1, viewport-fit=cover'; if (VIEW.meta.getAttribute('content') !== want) VIEW.meta.setAttribute('content', want); document.documentElement.style.zoom = ''; }
+  else { const w = document.documentElement.clientWidth || innerWidth; document.documentElement.style.zoom = table && w < 980 ? String(Math.round(w / 980 * 1000) / 1000) : ''; } }
+const viewZoom = () => parseFloat(document.documentElement.style.zoom) || 1;
+function viewBtn() { return viewSmall() ? `<button class="btn ghost" data-act="view" title="Switch between the full table (zoomed out) and the phone layout">Layout: ${viewMode() === 'table' ? 'full table' : 'phone'}</button>` : ''; }
+applyView(); window.addEventListener('orientationchange', () => setTimeout(applyView, 200)); window.addEventListener('resize', () => { if (!(VIEW.meta && VIEW.top)) applyView(); });
 const NF = { on: false, last: {}, base: document.title, flash: null, ac: null, note: '' };
 try { NF.on = localStorage.getItem('suNotify') === '1'; } catch (e) {}
 const nfPerm = () => { try { return typeof Notification === 'undefined' ? 'none' : Notification.permission; } catch (e) { return 'none'; } };
@@ -11430,12 +11445,12 @@ function renderMyGames() {
     if (r.w) return s.turn ? 'Your turn' : 'The game needs your answer';
     return s.wait != null ? `Waiting for ${esc(s.names[s.wait] || '…')}` : 'Computer players are moving'; };
   let h = `<header class="hero"><h1 class="logo" style="font-size:clamp(40px,11vw,76px)"><span class="a">MY</span><span class="b">GAMES</span></h1>
-    <p class="tag">Async games wait for whoever is up. Open one when it says it’s your turn, make your move, and close it. Nobody has to stay online.</p></header>${errBox()}
-    <div class="row" style="margin:14px 0"><button class="btn primary" data-act="acreate" ${S.busy ? 'disabled' : ''}>Start a new async game</button>
+    <p class="tag">Your online games wait for whoever is up. Open one when it says it’s your turn, make your move, and close it. Nobody has to stay online.</p></header>${errBox()}
+    <div class="row" style="margin:14px 0"><button class="btn primary" data-act="acreate" ${S.busy ? 'disabled' : ''}>Start a new game</button>
       <input type="text" id="acode" value="${esc(S.joinCode)}" maxlength="4" placeholder="CODE" aria-label="Game code" data-in="joinCode" style="width:7.5em;text-transform:uppercase;font:600 16px var(--mono);letter-spacing:.2em;padding:10px 12px;border-radius:9px;border:1.5px solid var(--line);background:var(--surface-2);color:var(--ink)">
       <button class="btn" data-act="join" ${S.busy ? 'disabled' : ''}>Join with a code</button><button class="btn ghost" data-act="notify" aria-pressed="${NF.on}" title="Chime and notify while this page is open when a game starts waiting on you">${NF.on ? 'Alerts: on' : 'Alert me'}</button><button class="btn ghost" data-act="home">Back</button></div>`;
   if (!M.loaded) h += `<div class="empty">Loading your games…</div>`;
-  else if (!rows.length) h += `<div class="empty">No async games yet. Start one and send the code to your friends.</div>`;
+  else if (!rows.length) h += `<div class="empty">No games yet. Start one and send the code to your friends.</div>`;
   else h += `<ul class="mglist">${rows.map(r => { const d = r.d, nm = names(d);
     return `<li class="mg ${r.w ? 'up' : ''}"><div class="mgi"><b>${nm.length ? nm.map(esc).join(' · ') : 'Game ' + esc(r.c)}</b><span class="btxt">${status(r)}${r.t ? ' · ' + ago(r.t) : ''} · code <span class="mono">${esc(r.c)}</span></span></div>
       <div class="row">${r.w ? '<span class="chip yt">Your turn</span>' : ''}<button class="btn ${r.w ? 'primary' : ''}" data-act="aopen" data-c="${esc(r.c)}">Open</button><button class="btn ghost" data-act="aremove" data-c="${esc(r.c)}" aria-label="Remove ${esc(r.c)} from my list">Remove</button></div></li>`; }).join('')}</ul>`;
@@ -11491,20 +11506,17 @@ function renderHome() {
     <p class="tag">Two factions each, one 40-card deck, and a table full of bases to fight over. Play around one screen, or each on your own device.</p></header>${errBox()}
     <div class="setup-grid">
       <section class="pcard"><h3 class="h3">Hot-seat</h3><p class="btxt" style="margin:0">One shared screen. Hands are hidden behind a pass-the-device screen between turns.</p><div><button class="btn primary" data-act="goLocal">Play on this device</button></div></section>
-      <section class="pcard"><h3 class="h3">Online</h3><p class="btxt" style="margin:0">Each player uses their own device. One person creates a room, the others join with its 4-letter code. The creator keeps this tab open while the game runs.</p>
+      <section class="pcard"><h3 class="h3">Online${S.myBadge ? ` <span class="chip yt">${S.myBadge} waiting on you</span>` : ''}</h3><p class="btxt" style="margin:0">Each player on their own device, at their own pace. Every player moves whenever they’re free; the game waits for whoever is up, and nobody has to stay online.</p>
         <input type="text" id="oname" value="${esc(S.myName)}" maxlength="18" placeholder="Your name" aria-label="Your name" data-in="myName">
-        <div class="row"><button class="btn primary" data-act="create" ${S.busy ? 'disabled' : ''}>Create a room</button></div>
-        <div class="row"><input type="text" id="ocode" value="${esc(S.joinCode)}" maxlength="4" placeholder="CODE" aria-label="Room code" data-in="joinCode" style="width:7.5em;text-transform:uppercase;font-family:var(--mono);letter-spacing:.2em">
-          <button class="btn" data-act="join" ${S.busy ? 'disabled' : ''}>Join</button></div></section>
-      <section class="pcard"><h3 class="h3">Async games${S.myBadge ? ` <span class="chip yt">${S.myBadge} waiting on you</span>` : ''}</h3><p class="btxt" style="margin:0">Play at your own pace. Each player moves whenever they’re free; the game waits for whoever is up, and nobody has to stay online.</p>
-        <div class="row"><button class="btn primary" data-act="mygames">My games</button><button class="btn" data-act="acreate" ${S.busy ? 'disabled' : ''}>Start an async game</button></div></section></div>
+        <div class="row"><button class="btn primary" data-act="mygames">My games</button><button class="btn" data-act="acreate" ${S.busy ? 'disabled' : ''}>Start a game</button></div></section></div>
+    ${viewSmall() ? `<div class="row" style="margin:12px 0">${viewBtn()}<span class="btxt">Full table shows the whole board zoomed out; phone stacks it with bigger text.</span></div>` : ''}
     <details class="rules"><summary>Rules at a glance</summary><ul>
       <li>Each turn: play one minion and one action (any order), use talents, then bases at their breakpoint score, you draw 2, and play passes left.</li>
       <li>Top three in power on a scoring base earn its VP (for example 4/2/1). Ties share the higher place.</li>
       <li>First to 15 VP at the end of a turn wins. A tie at the top keeps the game going. With Madness cards in the game, every 2 Madness cards you own cost 1 VP at the end.</li>
       <li>Factions: pick from the searchable list of all released factions. Ones marked “Coming soon” are still being built; more become playable with each update.</li>
-      <li>Online: anyone who opens this site can create and join rooms. Hands are hidden in the interface but are not encrypted, so play with people you trust.</li>
-      <li>Async games: the game waits for whoever is up, so friends can move whenever they are free. My games shows which games are waiting on you. Undo takes back your last play if nobody else has moved since.</li></ul></details>`; }
+      <li>Online: the game waits for whoever is up, so friends can move whenever they are free. My games shows which games are waiting on you. Undo takes back your last play if nobody else has moved since.</li>
+      <li>Anyone who opens this site can start and join games. Hands are hidden in the interface but are not encrypted, so play with people you trust.</li></ul></details>`; }
 
 const coverStyle = (id, px) => { const m = META.byId[id]; if (!m || !m.cover) return FACTIONS[id] && FACTIONS[id].wip ? `background:linear-gradient(135deg,${fcol(id)},#1b1d24)` : ''; const k = px / 120; return `background-image:url(covers.webp);background-size:${1200 * k}px ${1080 * k}px;background-position:-${m.cover.x * k}px -${m.cover.y * k}px`; };
 function slots(ctx, f) { return `<div class="slots">${[0, 1].map(s => { const id = f[s];
@@ -11544,7 +11556,7 @@ function renderSetup() {
 
 function renderLobby() {
   const R = S.room, ps = R.players, bad = lobbyOk(), bots = R.bots || []; const usedByOthers = id => new Set(ps.filter(p => p.id !== id).flatMap(p => p.f || []));
-  let h = R.async ? `<header class="hero"><div class="label">Async game · code</div><h1 class="logo" style="font-size:clamp(54px,16vw,110px);letter-spacing:.12em"><span class="a">${esc(R.code)}</span></h1>
+  let h = R.async ? `<header class="hero"><div class="label">Game code</div><h1 class="logo" style="font-size:clamp(54px,16vw,110px);letter-spacing:.12em"><span class="a">${esc(R.code)}</span></h1>
     <p class="tag">Friends join from My games with this code, any time before you start. Pick your two factions below (or run a snake draft); the creator starts the game. After that everyone moves when they can — the game waits for whoever is up.</p></header>${errBox()}` : `<header class="hero"><div class="label">Room code</div><h1 class="logo" style="font-size:clamp(54px,16vw,110px);letter-spacing:.12em"><span class="a">${esc(R.code)}</span></h1>
     <p class="tag">Friends open this same page, choose Online, and type the code. Pick your two factions below (or let the host run a snake draft); the room creator starts the game.</p></header>${errBox()}`;
   const Dr = R.draft; if (Dr) { h += renderDraftPanel(Dr, draftCur(Dr) === FB.uid); if (R.isHost && R.status === 'lobby') h += `<div class="row" style="margin:10px 0"><button class="btn ghost" data-act="dcancel">Cancel the draft</button></div>`; }
@@ -11668,7 +11680,7 @@ function renderGame() {
   let h = `${errBox()}<div class="score">${V.players.map((pl, i) => { const tc = tcards(pl); return `<div class="pl ${V.cur === i ? 'turn' : ''} ${tc ? 'hasti' : ''}"><span class="nm">${esc(pl.name)}${i === me && S.mode !== 'local' ? ' <span class="chip">you</span>' : ''}${pl.bot ? ' <span class="chip">Computer</span>' : ''}</span><span class="vp">${pl.vp}<small>VP</small></span>
     <span class="fs">${pl.f.map(chip).join('')}</span><span class="cnt"><span>Hand ${pl.hand.length}</span><span>Deck ${pl.deck}</span><span>Discard ${pl.disc.length}</span>${pl.ti.filter(t => !IMGU.cards[t.d]).map(t => `<span class="tinfo" title="${esc(CARDS[t.d].text)}">♛ ${esc(CARDS[t.d].name)} ${t.on ? '(in play)' : '(ready)'}</span>`).join('')}${pl.sta.map(e => `<span class="tinfo">${esc(CARDS[e.d].name)} in stasis (${e.n})</span>`).join('')}</span>${tc ? `<div class="tcards">${tc}</div>` : ''}</div>`; }).join('')}</div>
     <div class="bar"><div class="phase">${(V.uses.madness || V.uses.monsters) && !V.over ? `<span class="decks">${V.uses.madness ? `Madness deck ${V.dk.mad}` : ''}${V.uses.monsters ? ` · Monsters ${V.dk.mon} · Treasure ${V.dk.tr}` : ''}</span><br>` : ''}${V.over ? 'Game over' : `${pn(V.cur)}’s turn ${leftPills(V, tn && tn.p === me && S.mode !== 'local' || (S.mode === 'local' && tn && cover == null && tn.p === me))}`}${S.mode !== 'local' && !V.over && waitP != null && waitP !== me ? ` · <span class="btxt">waiting for ${pn(waitP)}</span>` : ''}${S.thinking != null && !V.over ? ' · <span class="btxt">thinking…</span>' : ''}</div>
-      <div class="row"><button class="btn ghost" data-act="undo" ${V.cu && !V.undo ? '' : 'disabled'}>Undo</button><button class="btn ghost" data-act="remind" aria-pressed="${S.remind}" title="Warn me before I end a turn with minion or action plays left">Reminders: ${S.remind ? 'on' : 'off'}</button><button class="btn ghost" data-act="discards">Discard piles</button><button class="btn ghost" data-act="log">${S.showLog ? 'Hide log' : 'Show log'}</button>${S.mode === 'async' && me >= 0 ? '<button class="btn ghost" data-act="seatkey">Seat key</button>' : ''}${nfBtn()}${chatBtn()}<button class="btn ghost" data-act="${S.mode === 'local' ? 'quit' : 'leave'}">${S.mode === 'local' ? 'New game' : S.mode === 'async' ? 'My games' : 'Leave room'}</button></div></div>${S.mode === 'async' ? asyncNote(V, me, waitP) : ''}`;
+      <div class="row"><button class="btn ghost" data-act="undo" ${V.cu && !V.undo ? '' : 'disabled'}>Undo</button><button class="btn ghost" data-act="discards">Discard piles</button><button class="btn ghost" data-act="log">${S.showLog ? 'Hide log' : 'Show log'}</button>${chatBtn()}<button class="btn ghost cog" data-act="settings" aria-label="Settings and menu" title="Settings and menu"><span aria-hidden="true">⚙</span> Menu</button></div></div>${S.mode === 'async' ? asyncNote(V, me, waitP) : ''}`;
   h += `<div class="gl">${renderTray(V)}${renderLastTray(V)}<div class="gm">`;
   h += renderBoard(prm && prm.p === me ? prm : null, cover);
   if (S.showLog) h += `<div class="sect"><h2>Table log</h2></div><ul class="log">${V.log.slice().reverse().map(logItem).join('')}</ul>`;
@@ -11717,6 +11729,15 @@ function renderLayer() {
     if (L.m) parts.push(`<span class="left lm"><b>${V.tm[0]}</b> minion${V.tm[0] === 1 ? '' : 's'}</span>`); if (L.a) parts.push(`<span class="left la"><b>${V.tm[1]}</b> action${V.tm[1] === 1 ? '' : 's'}</span>`); if (L.held) parts.push(`<span class="left zero"><b>${L.held}</b> held extra play${L.held === 1 ? '' : 's'}</span>`);
     h += `<div class="overlay" data-act="closemodal"><div class="panel" data-stop="1"><div class="label">Reminder</div><h2>You can still play this turn</h2><p class="btxt" style="margin:0">You have ${parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts[0]} left that you could play. End your turn anyway?</p>
       <div class="row"><button class="btn primary" data-act="closemodal">Keep playing</button><button class="btn" data-act="endyes">End my turn</button></div><p class="btxt" style="margin:0">Turn these reminders off with the “Reminders” button above the board.</p></div></div>`; }
+  else if (S.modal === 'settings') { const me = actor(), seg = (act, val, cur, label) => `<button data-act="${act}" data-v="${val}" aria-pressed="${cur}">${label}</button>`;
+    const key = S.mode === 'async' && S.A && me >= 0 ? (S.A.keys[me] || '') : '';
+    h += `<div class="overlay" data-act="closemodal"><div class="panel setp" data-stop="1"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Menu</h2><button class="btn ghost" data-act="closemodal">Close</button></div>
+      <div class="setrow"><div><b>Reminders</b><span class="btxt">Ask before I end a turn with minion or action plays left.</span></div><div class="seg">${seg('setremind', '1', S.remind, 'On')}${seg('setremind', '0', !S.remind, 'Off')}</div></div>
+      ${S.room && S.mode !== 'local' ? `<div class="setrow"><div><b>Turn alerts</b><span class="btxt">A chime and a notification when it’s your turn, while this page is open.</span></div><div class="seg">${seg('setnotify', '1', NF.on, 'On')}${seg('setnotify', '0', !NF.on, 'Off')}</div></div>` : ''}
+      ${viewSmall() ? `<div class="setrow"><div><b>Layout</b><span class="btxt">Full table shows the whole board zoomed out; phone stacks it with bigger text.</span></div><div class="seg">${seg('setview', 'table', viewMode() === 'table', 'Full table')}${seg('setview', 'phone', viewMode() === 'phone', 'Phone')}</div></div>` : ''}
+      ${key ? `<div class="setrow"><div><b>Seat key <span class="mono" style="letter-spacing:.15em">${esc(key)}</span></b><span class="btxt">To carry on from another phone or computer, open My games there, join with code <b class="mono">${esc(S.A.code)}</b> and enter this key.</span></div></div>` : ''}
+      <div class="setrow"><div><b>${S.mode === 'local' ? 'Leave this game' : S.mode === 'async' ? 'Back to My games' : 'Leave the room'}</b><span class="btxt">${S.mode === 'local' ? 'Ends this hot-seat game and goes back to setup.' : S.mode === 'async' ? 'The game is saved; it waits here until you come back.' : 'Leaves the room.'}</span></div><button class="btn" data-act="${S.mode === 'local' ? 'quit' : 'leave'}">${S.mode === 'local' ? 'New game' : S.mode === 'async' ? 'My games' : 'Leave'}</button></div>
+    </div></div>`; }
   else if (S.modal === 'seatkey' && S.A) { const me = actor(), k = S.A.keys[me] || '—';
     h += `<div class="overlay" data-act="closemodal"><div class="panel" data-stop="1"><div class="label">Seat key</div><h2 class="mono" style="letter-spacing:.2em">${esc(k)}</h2><p class="btxt" style="margin:0">To carry on from another phone or computer, open My games there, join with code <b class="mono">${esc(S.A.code)}</b>, and enter this key to take your seat.</p><button class="btn primary" data-act="closemodal">Close</button></div></div>`; }
   else if (S.modal === 'zoom' && (S.zoom || S.zoomId)) { const z = S.zoomId || {}, zd = z.k === 'base' ? (typeof BASES !== 'undefined' ? BASES[z.id] : null) : CARDS[z.id];
@@ -11756,6 +11777,11 @@ document.addEventListener('click', e => {
     case 'aopen': return void openByCode(el.dataset.c);
     case 'aremove': { const c = el.dataset.c; if (S.my) { if (S.my.subs[c]) { try { S.my.subs[c](); } catch (e) {} delete S.my.subs[c]; } delete S.my.rows[c]; } myBadge(); render(); return void rememberGame(c, true); }
     case 'seatkey': S.modal = 'seatkey'; return render();
+    case 'settings': S.modal = 'settings'; return render();
+    case 'setremind': { const on = el.dataset.v === '1'; if (on !== S.remind) { S.remind = on; try { localStorage.setItem('suRemind', on ? '1' : '0'); } catch (e) {} } return render(); }
+    case 'setnotify': { const on = el.dataset.v === '1'; if (on !== NF.on) return void nfToggle(); return; }
+    case 'setview': { const v = el.dataset.v; if (v !== viewMode()) { try { localStorage.setItem('suView', v); } catch (e) {} applyView(); } return render(); }
+    case 'view': { const m = viewMode() === 'table' ? 'phone' : 'table'; try { localStorage.setItem('suView', m); } catch (e) {} applyView(); render(); return; }
     case 'remind': S.remind = !S.remind; try { localStorage.setItem('suRemind', S.remind ? '1' : '0'); } catch (e) {} nfToast(S.remind ? 'Reminders on: you’ll be asked before ending a turn with plays left.' : 'Reminders off.'); return render();
     case 'claim': return void claimSeat();
     case 'join': return void joinRoom();
@@ -11787,7 +11813,7 @@ document.addEventListener('click', e => {
       if (t && /^Player \d$/.test(p.name)) p.name = 'Bot ' + (+el.dataset.i + 1); if (!t && /^Bot \d$/.test(p.name)) p.name = 'Player ' + (+el.dataset.i + 1); saveSetup(); return render(); }
     case 'rand': { S.drafted = false; S.note = ''; const f = fkeys().sort(() => Math.random() - .5); S.setup.players.forEach((p, i) => { p.f = i < S.setup.n ? [f[i * 2], f[i * 2 + 1]] : []; }); saveSetup(); return render(); }
     case 'start': { const s = S.setup; startEngine(s.players.slice(0, s.n).map(p => ({ name: p.name.trim() || 'Player', factions: p.f.slice() })), 'local', s.players.slice(0, s.n).map(p => p.ai || null), S.drafted ? 0 : null); return; }
-    case 'quit': S.g = null; S.V = null; S.pend = null; S.mode = null; S.cover = null; S.seat = null; S.modal = null; S.screen = 'setup'; return render();
+    case 'quit': S.modal = null; S.g = null; S.V = null; S.pend = null; S.mode = null; S.cover = null; S.seat = null; S.modal = null; S.screen = 'setup'; return render();
     case 'seat': S.seat = +el.dataset.p; S.cover = null; return render();
     case 'discards': S.modal = 'discards'; S.dtab = 0; return render();
     case 'dtab': S.dtab = +el.dataset.i; return render();
@@ -11825,7 +11851,7 @@ try { if (localStorage.getItem('suAsync') === '1') setTimeout(() => { asyncLoadM
 const DG = { st: null, on: false, just: false, ghost: null, tm: null, mark: null };
 function dgMark(el, cls) { if (DG.mark && (DG.mark[0] !== el || DG.mark[1] !== cls)) DG.mark[0].classList.remove(DG.mark[1]); DG.mark = el ? [el, cls] : null; if (el) el.classList.add(cls); }
 function dgStart() { const st = DG.st; if (!st) return; DG.on = true; const src = st.el; const r = src.getBoundingClientRect();
-  const gh = src.cloneNode(true); gh.classList.add('dragghost'); gh.style.width = r.width + 'px'; gh.style.left = (st.x - st.ox) + 'px'; gh.style.top = (st.y - st.oy) + 'px'; document.body.appendChild(gh); DG.ghost = gh;
+  const gh = src.cloneNode(true); gh.classList.add('dragghost'); gh.style.width = r.width + 'px'; const z = viewZoom(); gh.style.width = (r.width / z) + 'px'; gh.style.left = ((st.x - st.ox) / z) + 'px'; gh.style.top = ((st.y - st.oy) / z) + 'px'; document.body.appendChild(gh); DG.ghost = gh;
   src.classList.add('dragging'); try { navigator.vibrate && navigator.vibrate(15); } catch (e) {} }
 function dgTarget(x, y) { const st = DG.st; const row = document.querySelector(`.hand[data-grp="${st.grp}"]`); if (!row) return null;
   const cards = [...row.querySelectorAll('.card[data-uid]')].filter(c => +c.dataset.uid !== st.uid); if (!cards.length) return null;
@@ -11843,7 +11869,7 @@ document.addEventListener('pointerdown', e => { if (e.button > 0) return; const 
   if (DG.st.touch) DG.tm = setTimeout(dgStart, 380); });
 document.addEventListener('pointermove', e => { const st = DG.st; if (!st || e.pointerId !== st.id) return;
   if (!DG.on) { const d = Math.hypot(e.clientX - st.x, e.clientY - st.y); if (st.touch) { if (d > 10) { clearTimeout(DG.tm); DG.st = null; } return; } if (d < 6) return; dgStart(); }
-  if (DG.ghost) { DG.ghost.style.left = (e.clientX - st.ox) + 'px'; DG.ghost.style.top = (e.clientY - st.oy) + 'px'; }
+  if (DG.ghost) { const z = viewZoom(); DG.ghost.style.left = ((e.clientX - st.ox) / z) + 'px'; DG.ghost.style.top = ((e.clientY - st.oy) / z) + 'px'; }
   const t = dgTarget(e.clientX, e.clientY); dgMark(t ? t.c : null, t ? (t.after ? 'drop-after' : 'drop-before') : ''); e.preventDefault(); });
 document.addEventListener('pointerup', e => { if (!DG.st || e.pointerId !== DG.st.id) return; dgEnd({ x: e.clientX, y: e.clientY }); });
 document.addEventListener('pointercancel', e => { if (DG.st && e.pointerId === DG.st.id) dgEnd(null); });
