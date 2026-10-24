@@ -1,6 +1,6 @@
 # Smash Up Table
 
-A browser version of AEG's Smash Up for you and your friends: 90 factions, titans, Madness, monsters and treasure, a searchable faction picker, expert-level computer opponents, a snake draft, and online games you play at your own pace. Personal, non-commercial use only. Smash Up and all card art belong to Alderac Entertainment Group; art is loaded from the Smash Up wiki images shipped in `atlas/`.
+A browser version of AEG's Smash Up for you and your friends: 106 factions, titans, Madness, monsters and treasure, a searchable faction picker, expert-level computer opponents, a snake draft, and online games you play at your own pace. Personal, non-commercial use only. Smash Up and all card art belong to Alderac Entertainment Group; art is loaded from the Smash Up wiki images shipped in `atlas/`.
 
 Hot-seat play (everyone on one screen, with or without computer players) works as soon as the site is up. **Online games need a free Firebase project** (about 10 minutes, one time). Follow both parts below.
 
@@ -47,6 +47,6 @@ On the home screen (or **⚙ Menu** in a game), tap **Sign in or create an accou
 
 - The Firebase web config in `config.js` is meant to be public. The rules above let anyone who opens your site start and join games, which is fine for a friends-only game; don't share the link widely.
 - The free plan allows tens of thousands of reads and writes per day, plenty for several games a day. Old games stay in the database; delete the `rooms` collection in the console whenever you like.
-- Marvel/Disney: Avengers, Kree, The Lion King and Wreck-It Ralph are playable and marked **WIP but playable** (card text paraphrased from the wiki, no card art). The other 12 Marvel/Disney factions are listed as "Coming soon".
+- Marvel/Disney: all 16 factions and their 32 bases are playable, with card art and the printed card text. Their "characters" are minions under another name and follow the same rules.
 - Every base from every set is in the base pool in every game.
 - Some cards are approximations of the printed rules; they are documented in the project notes.
