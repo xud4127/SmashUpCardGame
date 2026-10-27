@@ -173,6 +173,7 @@ details.rules li { margin: 4px 0; }
 .inspimg{display:block;cursor:zoom-in;border-radius:8px;border:1px solid var(--line)}.inspimg.card{width:132px;height:auto}.inspimg.base{width:200px;height:auto}
 .ztext{display:grid;gap:10px;max-width:min(92vw,380px);padding:20px;border-radius:14px;background:var(--surface);color:var(--ink);font:500 17px/1.4 var(--body);cursor:zoom-out}.ztext b{font:700 22px var(--body)}
 .zclose{margin-top:14px}
+.zcap{margin-top:10px;padding:5px 12px;border-radius:99px;background:rgba(0,0,0,.55);color:#fff;font:600 14px var(--body)}
 .overlay:has(.zoomimg,.ztext){grid-auto-flow:row;align-content:center;justify-items:center}
 .zoomimg{max-width:min(92vw,460px);max-height:78vh;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.5);cursor:zoom-out}
 @media (max-width:480px){.insp.wi{grid-template-columns:1fr}.inspimg.card{width:140px}.inspimg.base{width:100%}}
@@ -343,7 +344,7 @@ details.rules li { margin: 4px 0; }
 </style>
 
 <div class="wrap" id="app"></div>
-<div class="ver" aria-label="Page version">Version Oct 24 04:41 UTC</div>
+<div class="ver" aria-label="Page version">Version Oct 27 03:58 UTC</div>
 <div id="layer"></div>
 <div id="chatdock"></div><div id="toast" role="status" aria-live="polite"></div>
 
@@ -756,14 +757,18 @@ function createGame(opts) {
      A handler that finishes without asking has simply resolved (it needs no ordering); one that reaches a question is "pending" and is re-run from the top in the order chosen.
      Only handlers that do nothing but read the game before their last question are probed (checked on their source), so the re-run never repeats an effect. */
   const PROBE = { probe: true }; g._probeSentinel = PROBE;
-  const READS = 'powerOf|minionsOf|allMinions|others|order|pname|log|basePower|breakpoint|baseActive|abilitiesOff|canMoveTo|legalBases|immune|allow|sum|standings|monstersIn|actionsInPlay|titansInPlay|ownedMinions|powerAt|isMicrobot|madnessCount|buriedBy|canPlayMinionAt|canPlayAction|hasPlayableAction|src|talentLeft|rm';
+  const READS = 'powerOf|minionsOf|allMinions|others|order|pname|log|basePower|breakpoint|baseActive|abilitiesOff|canMoveTo|legalBases|immune|allow|sum|standings|monstersIn|actionsInPlay|titansInPlay|ownedMinions|powerAt|isMicrobot|madnessCount|buriedBy|canPlayMinionAt|canPlayAction|hasPlayableAction|src|talentLeft';
   const ASKS = /\b(pickMinion|pickMinions|pickCards|pickBase|pickOption|yesno|extraMinion|extraAction)\b|g\.ask\(/g;
   const probeSafe = h => { if (h.__ps !== undefined) return h.__ps; let ok = false;
     try { const t = Function.prototype.toString.call(h); let last = -1, m; ASKS.lastIndex = 0; while ((m = ASKS.exec(t))) last = m.index;
       if (last >= 0) { const pre = t.slice(0, last).replace(/(await\s+)?(g\.)?$/, '');
         const calls = new RegExp('g\\.(?!(?:' + READS + ')\\b)[A-Za-z_]+\\s*\\(');
         const preQ = pre.replace(/await g\.(?:pickMinion|pickMinions|pickCards|pickBase|pickOption|yesno)/g, 'await g.Q');
-        ok = !calls.test(preQ.replace(/g\.Q\b/g, 'x')) && !/(\+\+|--|\+=|-=|\.push\(|\.splice\(|\.pop\(|\.shift\()/.test(pre) && !/await\s+(?!x\b)/.test(preQ.replace(/await g\.Q/g, 'await x')); } } catch (e) { ok = false; }
+        ok = !calls.test(preQ.replace(/g\.Q\b/g, 'x')) && !/(\+\+|--|\+=|-=|\.push\(|\.splice\(|\.pop\(|\.shift\()/.test(pre) && !/await\s+(?!x\b)/.test(preQ.replace(/await g\.Q/g, 'await x'))
+          /* writing to any object before the question (e.g. a once-per-turn stamp like b.flags[k] = g.round) would make the real run see its own probe's stamp and stop early */
+          && !/(\.[A-Za-z_$][\w$]*|\])\s*=(?![=>])/.test(pre) && !/\bdelete\s/.test(pre)
+          /* shared helpers (SmashUp.MD) that change the game */
+          && !/\bMD\.(?!(?:isMin|isAct|isBM|isCM|byOther|hasSpecial|mineHere|named|isBaseMod|isCharMod|mods|modsOf|modsOn|baseMods|charMods|countActionsThisTurn|stamped|myPlay|act)\s*\()\w+\s*\(/.test(pre); } } catch (e) { ok = false; }
     return (h.__ps = ok); };
   const where = s => s.k === 'base' ? '' : (s.o && s.o.base && s.o.base.def ? ` at ${s.o.base.def.name}` : (s.o && s.o.onMinion ? ` on ${s.o.onMinion.def.name}` : ''));
   const guard = (name, s, h, ev, mode) => ((s.k === 'base' && (name === 'afterScore' || name === 'beforeScore') && ev && ev.b && ev.b !== s.o && !h.any) ? false : true);
@@ -5007,14 +5012,21 @@ SmashUp.faction("giant_ants", { name: "Giant Ants", set: "Monster Smash", color:
       if (await g.yesno(t.controller, `Death on Six Legs: transfer a +1 power counter from ${snap.def.name} to the titan?`)) { snap.counters--; await g.addCounters(t, 1, g.src.titan(t)); } } }
   /* "if this is the first... " helper for tests */
   F.minion("killer_queen", "Killer Queen", 4, 1, "Talent: Draw a minion of power 1 or less off the top of your deck OR choose another minion you played this turn and place a +1 power counter on this minion and that minion.", H({
-    // APPROX: "Draw a minion of power 1 or less off the top of your deck" = look at the top card; if it is a minion of power 1 or less, draw it. "Played this turn" is tracked by an event wrapper (minions played before any Giant Ants card was seen by the game are missed unless the engine stamps m.playedRound).
+    // "Draw a minion of power 1 or less off the top of your deck" follows the normal off-the-top rule (as Penguins/Russian Fairy Tales do): reveal cards from the top until one is revealed, draw it, shuffle the other revealed cards back into the deck. APPROX: "Played this turn" is tracked by an event wrapper (minions played before any Giant Ants card was seen by the game are missed unless the engine stamps m.playedRound).
     talent: { can: (g, m) => true,
-      run: async (g, m) => { const p = m.controller; const ops = [{ id: 'draw', label: 'Draw the top card if it is a minion of power 1 or less' }];
+      run: async (g, m) => { const p = m.controller; const ops = [{ id: 'draw', label: 'Draw a minion of power 1 or less off the top of your deck' }];
         const cands = playedThisTurn(g, p).filter(x => x !== m);
         if (cands.length) ops.push({ id: 'ctr', label: 'Place a +1 power counter on this minion and another minion you played this turn' });
         const id = await g.pickOption(p, ops, 'Killer Queen');
-        if (id === 'draw') { const top = g.topCard(p); if (!top) return;
-          if ((top.def.type === 'minion' || top.def.type === 'fusion') && top.def.power <= 1) { g.log(`Killer Queen: ${top.def.name} is on top of the deck.`); g.draw(p, 1); } else g.log(`Killer Queen reveals ${top.def.name}: not a minion of power 1 or less (it stays on top).`); }
+        if (id === 'draw') { const pl = g.players[p]; if (!pl.deck.length && pl.discard.length) g.topCard(p);   // empty deck: shuffle the discard pile into a new deck
+          const held = []; let found = null;
+          while (pl.deck.length) { const c = pl.deck.pop(); held.push(c);
+            const left = SmashUp.revealedTop ? await SmashUp.revealedTop(g, p, [c], x => { const i = held.indexOf(x); if (i < 0) return false; held.splice(i, 1); return true; }) : [c]; if (!left.length) continue;
+            if ((c.def.type === 'minion' || c.def.type === 'fusion') && c.def.power <= 1) { found = c; break; } }
+          const shown = held.map(c => c.def.name); g.log(`Killer Queen: ${g.pname(p)} reveals ${shown.length ? shown.join(', ') : 'nothing'} from the top of their deck.`);
+          if (found) { held.splice(held.indexOf(found), 1); pl.hand.push(found); g.log(`${g.pname(p)} draws ${found.def.name}.`); g.queue('cardsDrawn', { p, n: 1, cards: [found] }); }
+          else g.log('Killer Queen: there is no minion of power 1 or less in the deck.');
+          if (held.length) { pl.deck.push(...held); g.shuffleDeck(p); g.log('The other revealed cards are shuffled back into the deck.'); } }
         else { const t = await g.pickMinion(p, cands, 'Killer Queen: place a counter on which minion you played this turn?', { src: g.src.ability(m) }); if (!t) return;
           await g.addCounters(m, 1, g.src.ability(m)); await g.addCounters(t, 1, g.src.ability(m)); } } } }));
   F.minion("drone", "Drone", 3, 2, "Place a +1 power counter on this minion. Ongoing: When one of your minions would be destroyed, you may remove a +1 power counter from this minion instead. Talent: Remove a +1 power counter from this minion to draw a card.", H({
@@ -11918,6 +11930,7 @@ const fkeys = () => Object.keys(FACTIONS).filter(k => !FACTIONS[k].hidden);
 const fname = id => (FACTIONS[id] && FACTIONS[id].name) || (META.byId[id] && META.byId[id].name) || id;
 const fcol = id => (FACTIONS[id] && FACTIONS[id].color) || (META.byId[id] && META.byId[id].color) || '#8a8f9c';
 const fset = id => (META.byId[id] && META.byId[id].set) || 'Core';
+const titanPw = (g, t, b) => { let v = t.counters || 0; const f = t.def.f && t.def.f.basePower; if (f && !g.abilitiesOff(t)) { try { v += f(g, t, { b, p: t.controller }) || 0; } catch (e) {} } return Math.max(0, v); };
 const isMD = f => /Marvel|Disney/.test((FACTIONS[f] || {}).set || '');
 const mword = d => d && isMD(d.faction) ? 'character' : 'minion';
 const wipTag = id => FACTIONS[id] && FACTIONS[id].wip ? ' <em class="wip">WIP but playable</em>' : '';
@@ -11978,7 +11991,7 @@ const rpath = c => 'rooms/' + c;
 const host = {
   onChange() { if (!S.replaying) pushView(); },
   ask(g, p, spec) { return new Promise(res => { const pe = S.pend = { kind: 'prompt', seq: ++S.seqN, p, spec, res }; if (asyncFeed(pe)) return; pushView(); aiMaybe(pe); }); },
-  chooseTurnAction(g, p, info) { return new Promise(res => { const pe = S.pend = { kind: 'turn', seq: ++S.seqN, p, info, res }; if (asyncFeed(pe)) return; S.selCard = null; S.inspect = null; pushView(); aiMaybe(pe); }); }
+  chooseTurnAction(g, p, info) { return new Promise(res => { const pe = S.pend = { kind: 'turn', seq: ++S.seqN, p, info, res }; if (asyncFeed(pe)) return; if (p === actor()) S.selCard = null; pushView(); aiMaybe(pe); }); }
 };
 const botLvl = p => (S.bots && S.bots[p]) ? 'expert' : null;
 function aiMaybe(pe) { const lvl = botLvl(pe.p);
@@ -11999,7 +12012,7 @@ function buildView() {
     players: g.players.map(pl => ({ name: pl.name, f: pl.factions, vp: pl.vp, deck: pl.deck.length, hand: pl.hand.map(cr), disc: pl.discard.map(c => c.def.id), na: !!(g.sleep[pl.idx] && g.sleep[pl.idx].noActions), bot: botLvl(pl.idx), ti: pl.titans.map(t => ({ uid: t.uid, d: t.def.id, on: !!t.base, n: t.base ? 0 : (t.counters || 0) })), sta: pl.stasis.map(e => ({ uid: e.uid, d: e.card.def.id, n: e.counters })) })),
     sp: (g.spPref || []).slice(), pt: g.feed ? g.feed().slice() : (g.turn.played || []).map(e => ({ uid: e.uid, d: e.d, p: e.p, tg: e.tg })), lt: g.prevTurn || null, dk: { mad: g.madnessDeck.length, mon: g.monsterDeck.length, tr: g.treasureDeck.length }, uses: g.uses, adj: g.adjusted || null, mdn: g.madness || null, wins: g.winners || (g.winner != null ? [g.winner] : []),
     bases: g.bases.map(b => ({ uid: b.uid, d: b.def.id, pw: g.basePower(b), bp: g.breakpoint(b), on: g.baseActive(b),
-      ti: b.titans.map(t => ({ uid: t.uid, d: t.def.id, c: t.controller, pw: t.counters || 0 })), bu: b.buried.length, sc: (b.stored || []).length,
+      ti: b.titans.map(t => ({ uid: t.uid, d: t.def.id, c: t.controller, pw: titanPw(g, t, b), cn: t.counters || 0 })), bu: b.buried.length, sc: (b.stored || []).length,
       mn: b.minions.map(m => ({ uid: m.uid, d: m.def.id, c: m.controller, pw: g.powerOf(m), cn: m.counters || 0, sc: (m.stored || []).length, st: !!m.stego, at: m.attached.map(a => ({ uid: a.uid, d: a.def.id, c: a.controller })) })),
       ac: b.actions.map(a => ({ uid: a.uid, d: a.def.id, c: a.controller })) })) };
   if (pe && pe.kind === 'prompt') { const s = pe.spec;
@@ -12032,7 +12045,7 @@ function applyAnswer(msg, from) {
   const n = AI.toNative(S.g, pe, msg.v); if (!n.ok) return;
   markLog(); S.log.push({ p: pe.p, k: pe.kind, v: msg.v === undefined ? null : msg.v, h: !botLvl(pe.p), label: labelOf(pe, msg.v) });
   if (S.mode === 'async' && S.A) { if (from !== undefined) S.A.driver = true; asyncSave(from !== undefined); }
-  S.pend = null; S.selCard = null; S.inspect = null; pushView(); pe.res(n.r); }
+  S.pend = null; if (pe.p === actor()) { S.selCard = null; S.inspect = null; } pushView(); pe.res(n.r); }
 
 async function send(v) {
   const seq = S.V.prompt ? S.V.prompt.seq : S.V.turn ? S.V.turn.seq : 0;
@@ -12283,7 +12296,7 @@ function setBots(bots) { S.room.bots = bots; render(); FB.db.doc(rpath(S.room.co
    The game is the room's setup (players, seed) plus a shared list of every answer. Every browser rebuilds the game from that list,
    so nobody has to keep a tab open: whoever the game is waiting on opens it, answers, and the new answers are saved for the next person.
    Storage: rooms/<code>/state/head {rev, n, tag, t, fp[]} and rooms/<code>/state/c000, c001, … {m: [answers]} (CH answers per chunk). */
-const RULES_VER = '20d0db36ff';
+const RULES_VER = 'ab67761d30';
 const CH = 200;
 const ahash = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(16); };
 const sameE = (a, b) => a && b && a.p === b.p && a.k === b.k && JSON.stringify(a.v === undefined ? null : a.v) === JSON.stringify(b.v === undefined ? null : b.v);
@@ -12731,8 +12744,11 @@ function inspector(seat, mode) {
   if (ins) {
     if (ins.t === 'base') { const D = BASES[ins.b.d]; return `<div class="insp ${IMGU.bases[ins.b.d] ? 'wi' : ''}">${zimg('base', ins.b.d)}<div class="itxt"><h3>${esc(D.name)}</h3><p>${esc(D.text)}</p></div></div>`; }
     const o = ins.t === 'minion' ? ins.m : ins.a, d = CARDS[o.d]; let extra = '';
-    if (ins.t === 'minion') extra = d.type === 'titan' ? `<div class="why">Titan controlled by ${pn(o.c)} · power ${o.pw} (from +1 counters)</div>` : `<div class="why">${o.c == null ? 'Monster (nobody controls it)' : 'Controlled by ' + pn(o.c)} · power now ${o.pw} (printed ${d.power})${o.cn ? ` · ${o.cn} counter(s)` : ''}${o.sc ? ` · ${o.sc} stored card(s)` : ''}</div>`; else extra = `<div class="why">Played by ${pn(o.c)}</div>`;
-    return `<div class="insp ${IMGU.cards[o.d] ? 'wi' : ''}">${zimg('card', o.d)}<div class="itxt"><div class="row">${chip(d.faction)}<h3>${esc(d.name)}</h3></div><p>${esc(d.text)}</p>${extra}</div></div>`; }
+    if (ins.t === 'minion') extra = d.type === 'titan' ? `<div class="why">Titan controlled by ${pn(o.c)} · adds ${o.pw} power here${o.cn && o.cn !== o.pw ? ` (${o.cn} from +1 counters)` : o.cn ? ' (from +1 counters)' : ''}</div>` : `<div class="why">${o.c == null ? 'Monster (nobody controls it)' : 'Controlled by ' + pn(o.c)} · power now ${o.pw} (printed ${d.power})${o.cn ? ` · ${o.cn} counter(s)` : ''}${o.sc ? ` · ${o.sc} stored card(s)` : ''}</div>`; else extra = `<div class="why">Played by ${pn(o.c)}</div>`;
+    /* talents and other turn options of this card, right where the player is looking */
+    const own = mode && V.turn ? V.turn.opts.filter(x => x.id === 't' + o.uid || x.id.startsWith('g' + o.uid + '_')) : [];
+    const ob = own.length ? `<div class="opts">${own.map(x => `<button class="btn primary" data-act="opt" data-id="${esc(x.id)}">${x.id[0] === 't' ? 'Use talent' : esc(x.label)}</button>`).join('')}</div>` : '';
+    return `<div class="insp ${IMGU.cards[o.d] ? 'wi' : ''}">${zimg('card', o.d)}<div class="itxt"><div class="row">${chip(d.faction)}<h3>${esc(d.name)}</h3></div><p>${esc(d.text)}</p>${extra}${ob}</div></div>`; }
   return `<div class="insp"><div class="why">${mode ? 'Tap a card in your hand to read it and play it. Tap anything on the table to read its text.' : 'Tap a card to read it.'}</div></div>`; }
 
 /* log lines: every card or base named in a line gets a thumbnail and its rules text */
@@ -12799,7 +12815,7 @@ function renderGame() {
     h += renderHand(pl, me, mode, tn);
     if (mode) h += `<div class="endrow">${leftPills(V, true)}<button class="btn primary" data-act="end">Done playing: score bases and draw</button></div>`; }
   else if (me === -1 && S.mode === 'async') h += `<div class="sect"><h2>Watching</h2></div><div class="insp"><p class="btxt" style="margin:0 0 8px">You aren’t seated in this game on this device. If one of the seats is yours, enter its seat key (any player in the game can see theirs under “Seat key”).</p><div class="row"><input type="text" id="skey" maxlength="6" placeholder="SEAT KEY" aria-label="Seat key" style="width:9em;text-transform:uppercase;font:600 16px var(--mono);letter-spacing:.15em;padding:10px 12px;border-radius:9px;border:1.5px solid var(--line);background:var(--surface-2);color:var(--ink)"><button class="btn primary" data-act="claim">Take my seat</button></div></div>`;
-  else if (me === -1 && S.mode !== 'local') h += `<div class="sect"><h2>Spectating</h2></div><div class="empty">You are watching this game.</div>`;
+  else if (me === -1 && S.mode !== 'local') h += `<div class="sect"><h2>Spectating</h2></div><div class="empty">You are watching this game.</div>${S.inspect != null ? inspector(me, false) : ''}`;
   return h + '</div></div>'; }
 
 /* choices whose labels name a card or base (pick a base from the deck, pick a card name) show as pictures */
@@ -12852,7 +12868,7 @@ function renderLayer() {
   else if (S.modal === 'seatkey' && S.A) { const me = actor(), k = S.A.keys[me] || '—';
     h += `<div class="overlay" data-act="closemodal"><div class="panel" data-stop="1"><div class="label">Seat key</div><h2 class="mono" style="letter-spacing:.2em">${esc(k)}</h2><p class="btxt" style="margin:0">To carry on from another phone or computer, open My games there, join with code <b class="mono">${esc(S.A.code)}</b>, and enter this key to take your seat.</p><button class="btn primary" data-act="closemodal">Close</button></div></div>`; }
   else if (S.modal === 'zoom' && (S.zoom || S.zoomId)) { const z = S.zoomId || {}, zd = z.k === 'base' ? (typeof BASES !== 'undefined' ? BASES[z.id] : null) : CARDS[z.id];
-    h += `<div class="overlay" data-act="closemodal">${S.zoom ? `<img class="zoomimg" src="${S.zoom}" alt="${esc(zd ? zd.name : '')}" data-act="closemodal">` : `<div class="ztext" data-act="closemodal"><b>${esc(zd ? zd.name : 'Card')}</b><span>${esc(zd && zd.text ? zd.text : '')}</span></div>`}<button class="btn primary zclose" data-act="closemodal">${S.zoomBack ? 'Back to discards' : 'Close'}</button></div>`; }
+    h += `<div class="overlay" data-act="closemodal">${S.zoom ? `<img class="zoomimg" src="${S.zoom}" alt="${esc(zd ? zd.name : '')}" data-act="closemodal">` : `<div class="ztext" data-act="closemodal"><b>${esc(zd ? zd.name : 'Card')}</b><span>${esc(zd && zd.text ? zd.text : '')}</span></div>`}${S.zoomCap ? `<div class="zcap">${esc(S.zoomCap)}</div>` : ''}<button class="btn primary zclose" data-act="closemodal">${S.zoomBack ? 'Back to discards' : 'Close'}</button></div>`; }
   else if (S.modal === 'discards') { const k = S.dtab, pl = V.players[k];
     h += `<div class="overlay" data-act="closemodal"><div class="panel wide" data-stop="1"><h2>Discard piles</h2><div class="tabs">${V.players.map((p, i) => `<button data-act="dtab" data-i="${i}" aria-pressed="${i === k}">${esc(p.name)} (${p.disc.length})</button>`).join('')}</div>
       <div class="btxt">Most recent first. Tap a card to enlarge it.</div>
@@ -12952,10 +12968,16 @@ document.addEventListener('click', e => {
       if (S.mode === 'local') return voteUndo(+el.dataset.s, y);
       if (S.mode === 'guest') return void sendMeta({ t: 'vote', yes: y }); return voteUndo(seatOfUid(FB.uid), y); }
     case 'closemodal': if (S.modal === 'zoom' && S.zoomBack) { S.modal = S.zoomBack; S.zoomBack = null; } else S.modal = null; return render();
-    case 'zoom': { const zz = el.dataset.z, zi = zz.indexOf(':'), k = zz.slice(0, zi), id = zz.slice(zi + 1); S.zoom = (k === 'base' ? IMGU.bases[id] : IMGU.cards[id]) || ''; S.zoomId = { k, id }; S.zoomBack = S.modal === 'discards' ? 'discards' : null; S.modal = 'zoom'; return render(); }
+    case 'zoom': { const zz = el.dataset.z, zi = zz.indexOf(':'), k = zz.slice(0, zi), id = zz.slice(zi + 1); S.zoomCap = ''; S.zoom = (k === 'base' ? IMGU.bases[id] : IMGU.cards[id]) || ''; S.zoomId = { k, id }; S.zoomBack = S.modal === 'discards' ? 'discards' : null; S.modal = 'zoom'; return render(); }
     case 'log': S.showLog = !S.showLog; return render();
     case 'hcard': { if (DG.just) return; const u = +el.dataset.uid; S.selCard = S.selCard === u ? null : u; S.inspect = null; return render(); }
-    case 'inspect': if (S.V && S.V.prompt && S.V.prompt.p === actor()) return; S.inspect = +el.dataset.uid; S.selCard = null; return render();
+    case 'inspect': { if (S.V && S.V.prompt && S.V.prompt.p === actor()) return; S.inspect = +el.dataset.uid; S.selCard = null;
+      const V = S.V, me = actor(), myMove = V && ((V.turn && V.turn.p === me) || (V.prompt && V.prompt.p === me)); const it = index()[S.inspect];
+      if (!myMove && it && (it.t === 'minion' || it.t === 'action' || it.t === 'base')) { const o = it.t === 'minion' ? it.m : it.t === 'action' ? it.a : it.b, k = it.t === 'base' ? 'base' : 'card';
+        S.zoom = (k === 'base' ? IMGU.bases[o.d] : IMGU.cards[o.d]) || ''; S.zoomId = { k, id: o.d }; S.zoomBack = null;
+        const nm = i => i == null ? 'nobody' : (V.players[i] ? V.players[i].name : '?'); S.zoomCap = it.t === 'minion' ? (CARDS[o.d].type === 'titan' ? `Titan · ${nm(o.c)} · power ${o.pw}` : `${o.c == null ? 'Monster' : nm(o.c)} · power now ${o.pw}${o.cn ? ` · ${o.cn} counter${o.cn > 1 ? 's' : ''}` : ''}`) : it.t === 'action' ? `Played by ${nm(o.c)}` : `${o.pw} / ${o.bp} power`;
+        S.modal = 'zoom'; }
+      return render(); }
   }
   const V = S.V; if (!V) return;
   if (a === 'end') { if (S.remind) { const L = playsLeft(V); if (L.m || L.a || L.held) { S.modal = 'endconfirm'; return render(); } } return void send({ type: 'end' }); }
